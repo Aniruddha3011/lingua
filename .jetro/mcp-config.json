@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "jetro": {
+      "command": "C:\\Users\\aniruddha\\.jetro\\runtime\\node-win32-x64.exe",
+      "args": [
+        "C:\\Users\\aniruddha\\.jetro\\mcp-server\\index.js"
+      ],
+      "env": {
+        "JET_WORKSPACE": "a:\\React-Native\\DualingoApp",
+        "JET_API_URL": "https://api.jetro.ai",
+        "PATH": "C:\\Users\\aniruddha\\.jetro\\runtime;C:\\Program Files\\Microsoft\\jdk-17.0.20.8-hotspot\\bin;D:\\Scripts\\;D:\\;C:\\Python312\\Scripts\\;C:\\Python312\\;C:\\Program Files\\Common Files\\Oracle\\Java\\javapath;C:\\Windows\\system32;C:\\Windows;C:\\Windows\\System32\\Wbem;C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\;C:\\Windows\\System32\\OpenSSH\\;C:\\Program Files\\dotnet\\;C:\\Program Files (x86)\\NVIDIA Corporation\\PhysX\\Common;C:\\MinGW\\bin;C:\\Program Files\\Java\\jdk-22\\bin;C:\\ProgramData\\chocolatey\\bin;C:\\Program Files\\Git\\cmd;C:\\WINDOWS\\system32;C:\\WINDOWS;C:\\WINDOWS\\System32\\Wbem;C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\;C:\\WINDOWS\\System32\\OpenSSH\\;C:\\Program Files\\Docker\\Docker\\resources\\bin;A:\\androidsdk\\platform-tools;D:\\nodejs\\;C:\\Users\\aniruddha\\.local\\bin;C:\\Users\\aniruddha\\AppData\\Local\\Microsoft\\WindowsApps;C:\\Users\\aniruddha\\AppData\\Local\\Programs\\Microsoft VS Code\\bin;D:\\flutter_windows_3.24.0-stable\\flutter\\bin;C:\\Java\\jdk-22\\bin;C:\\Users\\aniruddha\\AppData\\Local\\GitHubDesktop\\bin;D:\\cursor\\resources\\app\\bin;A:\\Windsurf\\bin;D:\\Antigravity\\bin;C:\\flutter\\bin;D:\\Antigravity IDE\\bin;C:\\Users\\aniruddha\\AppData\\Local\\Programs\\Antigravity IDE\\bin;D:\\Kiro\\bin;C:\\Users\\aniruddha\\AppData\\Roaming\\npm"
+      }
+    }
+  }
+}
