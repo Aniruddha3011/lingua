@@ -1,5 +1,5 @@
 import { useAuth } from "@clerk/expo";
-import { Redirect } from "expo-router";
+import { Link, Redirect } from "expo-router";
 import { ActivityIndicator, Text, TouchableOpacity, View } from "react-native";
 
 export default function Home() {
@@ -25,8 +25,17 @@ export default function Home() {
           Welcome to your lessons.
         </Text>
 
+        <Link href="/choose-language" asChild>
+          <TouchableOpacity className="mt-4 h-[52px] w-full max-w-[320px] flex-row items-center justify-center rounded-[14px] bg-brand-purple active:opacity-90">
+            <Text className="mr-2 text-[18px]">🌐</Text>
+            <Text className="font-poppins-semibold text-[16px] text-white">
+              Choose Language
+            </Text>
+          </TouchableOpacity>
+        </Link>
+
         <TouchableOpacity
-          className="mt-6 h-[52px] w-full max-w-[320px] items-center justify-center rounded-[14px] bg-[#FF4D4F] active:opacity-80"
+          className="mt-2 h-[52px] w-full max-w-[320px] items-center justify-center rounded-[14px] bg-[#FF4D4F] active:opacity-80"
           onPress={() => void signOut()}
         >
           <Text className="font-poppins-semibold text-[16px] text-white">
@@ -37,4 +46,5 @@ export default function Home() {
     </View>
   );
 }
+
 
