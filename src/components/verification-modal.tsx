@@ -13,6 +13,7 @@ type VerificationModalProps = {
   onDismiss: () => void;
   onVerified: () => void;
   verifyCode: (code: string) => Promise<boolean>;
+  errorMessage?: string | null;
 };
 
 const CODE_LENGTH = 6;
@@ -22,6 +23,7 @@ export function VerificationModal({
   onDismiss,
   onVerified,
   verifyCode,
+  errorMessage,
 }: VerificationModalProps) {
   const inputRef = useRef<TextInput>(null);
   const [code, setCode] = useState("");
@@ -32,6 +34,7 @@ export function VerificationModal({
     setCode("");
     onDismiss();
   };
+
 
   const handleCodeChange = async (value: string) => {
     const nextCode = value.replace(/\D/g, "").slice(0, CODE_LENGTH);
@@ -85,6 +88,11 @@ export function VerificationModal({
                 <Text className="mt-2 font-poppins text-[15px] leading-[23px] text-text-secondary">
                   We sent you a verification code. Enter the 6-digit code to continue.
                 </Text>
+                {errorMessage ? (
+                  <Text className="mt-2 font-poppins text-[13px] text-[#FF4D4F]">
+                    {errorMessage}
+                  </Text>
+                ) : null}
               </View>
 
               <TouchableOpacity
