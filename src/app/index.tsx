@@ -1,22 +1,22 @@
-import { Link } from "expo-router";
-import { Text, TouchableOpacity, View } from "react-native";
+import { useAuth } from "@clerk/expo";
+import { Redirect } from "expo-router";
+import { ActivityIndicator, View } from "react-native";
 
 export default function Index() {
-  return (
-    <View className="ds-screen justify-center">
-      <View className="ds-screen__content gap-5">
-        <Text className="ds-type-h1 text-text-primary">Welcome to Lingua</Text>
-        <Text className="ds-type-body-md text-text-secondary">
-          Start your language-learning journey.
-        </Text>
-        <Link href="/onboarding" asChild>
-          <TouchableOpacity className="ds-button ds-button--primary w-full">
-            <Text className="ds-type-body-lg font-poppins-semibold text-white">
-              Get Started
-            </Text>
-          </TouchableOpacity>
-        </Link>
+  const { isSignedIn, isLoaded } = useAuth();
+
+  if (!isLoaded) {
+    return (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#FFFFFF" }}>
+        <ActivityIndicator size="large" color="#7C3AED" />
       </View>
-    </View>
-  );
+    );
+  }
+
+  if (isSignedIn) {
+    return <Redirect href="/home" />;
+  }
+
+  return <Redirect href="/onboarding" />;
 }
+

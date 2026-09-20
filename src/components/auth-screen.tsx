@@ -1,7 +1,10 @@
+import { useSignIn, useSignUp, useSSO } from "@clerk/expo";
+import * as AuthSession from "expo-auth-session";
 import { Link, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useState } from "react";
 import {
+    ActivityIndicator,
     Image,
     ScrollView,
     Text,
@@ -43,9 +46,17 @@ function SocialIcon({ provider }: { provider: SocialProvider }) {
 
 export function AuthScreen({ mode }: AuthScreenProps) {
   const router = useRouter();
-  const [email, setEmail] = useState("alex@gmail.com");
-  const [password, setPassword] = useState("language");
+  const { signUp } = useSignUp();
+  const { signIn } = useSignIn();
+  const { startSSOFlow } = useSSO();
+
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [isVerificationVisible, setIsVerificationVisible] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [verificationError, setVerificationError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const isSignUp = mode === "signUp";
 
   const title = isSignUp ? "Create your account" : "Welcome back";
@@ -53,6 +64,141 @@ export function AuthScreen({ mode }: AuthScreenProps) {
     ? "Start your language journey today \u2728"
     : "Continue your language journey";
   const actionLabel = isSignUp ? "Sign Up" : "Sign In";
+
+  const handleSignUp = async () => {
+    setErrorMessage(null);
+    if (!email || !password) {
+      setErrorMessage("Please enter both email and password.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const { error } = await signUp.password({ emailAddress: email, password });
+      if (error) {
+        setErrorMessage(error.message || "Failed to create account. Please try again.");
+        setIsSubmitting(false);
+        return;
+      }
+
+      const { error: sendError } = await signUp.verifications.sendEmailCode();
+      if (sendError) {
+        setErrorMessage(sendError.message || "Failed to send verification code.");
+        setIsSubmitting(false);
+        return;
+      }
+
+      setIsSubmitting(false);
+      setVerificationError(null);
+      setIsVerificationVisible(true);
+    } catch (err: any) {
+      setErrorMessage(err?.message || "An error occurred during sign up.");
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleSignIn = async () => {
+    setErrorMessage(null);
+    if (!email) {
+      setErrorMessage("Please enter your email address.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const { error } = await signIn.emailCode.sendCode({ emailAddress: email });
+      if (error) {
+        if (password) {
+          const { error: pwdError } = await signIn.password({ emailAddress: email, password });
+          if (!pwdError && signIn.status === "complete") {
+            await signIn.finalize();
+            setIsSubmitting(false);
+            router.replace("/");
+            return;
+          }
+        }
+        setErrorMessage(error.message || "Sign in failed. Please check your credentials.");
+        setIsSubmitting(false);
+        return;
+      }
+
+      setIsSubmitting(false);
+      setVerificationError(null);
+      setIsVerificationVisible(true);
+    } catch (err: any) {
+      setErrorMessage(err?.message || "An error occurred during sign in.");
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleVerifyCode = async (code: string): Promise<boolean> => {
+    setVerificationError(null);
+    if (isSignUp) {
+      try {
+        const { error } = await signUp.verifications.verifyEmailCode({ code });
+        if (error) {
+          setVerificationError(error.message || "Invalid verification code.");
+          return false;
+        }
+
+        const { error: finalizeError } = await signUp.finalize();
+        if (finalizeError) {
+          setVerificationError(finalizeError.message || "Failed to finalize session.");
+          return false;
+        }
+
+        return true;
+      } catch (err: any) {
+        setVerificationError(err?.message || "Verification failed.");
+        return false;
+      }
+    } else {
+      try {
+        const { error } = await signIn.emailCode.verifyCode({ code });
+        if (error) {
+          setVerificationError(error.message || "Invalid verification code.");
+          return false;
+        }
+
+        if (signIn.status === "complete") {
+          const { error: finalizeError } = await signIn.finalize();
+          if (finalizeError) {
+            setVerificationError(finalizeError.message || "Failed to finalize session.");
+            return false;
+          }
+          return true;
+        }
+
+        setVerificationError("Additional authentication steps required.");
+        return false;
+      } catch (err: any) {
+        setVerificationError(err?.message || "Verification failed.");
+        return false;
+      }
+    }
+  };
+
+  const handleSocialAuth = async (provider: SocialProvider) => {
+    setErrorMessage(null);
+    let strategy: "oauth_google" | "oauth_facebook" | "oauth_apple";
+    if (provider === "Google") strategy = "oauth_google";
+    else if (provider === "Facebook") strategy = "oauth_facebook";
+    else strategy = "oauth_apple";
+
+    try {
+      const redirectUrl = AuthSession.makeRedirectUri({ path: "sso-callback" });
+      const { createdSessionId, setActive } = await startSSOFlow({
+        strategy,
+        redirectUrl,
+      });
+      if (createdSessionId && setActive) {
+        await setActive({ session: createdSessionId });
+        router.replace("/home");
+      }
+    } catch (err: any) {
+      setErrorMessage(err?.message || `Failed to sign in with ${provider}.`);
+    }
+  };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#FFFFFF" }}>
@@ -94,6 +240,14 @@ export function AuthScreen({ mode }: AuthScreenProps) {
             />
           </View>
 
+          {errorMessage ? (
+            <View className="mb-3 rounded-[10px] bg-[#FFF2F0] px-4 py-2 border border-[#FFCCC7]">
+              <Text className="font-poppins text-[13px] text-[#FF4D4F]">
+                {errorMessage}
+              </Text>
+            </View>
+          ) : null}
+
           <View className="gap-2">
             <View className="h-[76px] rounded-[14px] border border-[#E8EAF0] px-4 py-2">
               <Text className="font-poppins text-[12px] leading-[17px] text-text-secondary">
@@ -134,11 +288,16 @@ export function AuthScreen({ mode }: AuthScreenProps) {
 
             <TouchableOpacity
               className="mt-1 h-[56px] items-center justify-center rounded-[14px] bg-brand-purple active:bg-brand-deep-purple"
-              onPress={() => setIsVerificationVisible(true)}
+              disabled={isSubmitting}
+              onPress={isSignUp ? handleSignUp : handleSignIn}
             >
-              <Text className="font-poppins-semibold text-[18px] leading-[24px] text-white">
-                {actionLabel}
-              </Text>
+              {isSubmitting ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <Text className="font-poppins-semibold text-[18px] leading-[24px] text-white">
+                  {actionLabel}
+                </Text>
+              )}
             </TouchableOpacity>
           </View>
 
@@ -150,9 +309,10 @@ export function AuthScreen({ mode }: AuthScreenProps) {
 
           <View className="gap-2">
             {socialProviders.map((provider) => (
-              <View
+              <TouchableOpacity
                 key={provider}
-                className="h-[56px] flex-row items-center rounded-[14px] border border-[#EEF0F4] px-5"
+                className="h-[56px] flex-row items-center rounded-[14px] border border-[#EEF0F4] px-5 active:bg-[#F9FAFB]"
+                onPress={() => handleSocialAuth(provider)}
               >
                 <View className="w-8 items-center">
                   <SocialIcon provider={provider} />
@@ -160,7 +320,7 @@ export function AuthScreen({ mode }: AuthScreenProps) {
                 <Text className="ml-5 font-poppins-medium text-[14px] leading-[20px] text-text-primary">
                   Continue with {provider}
                 </Text>
-              </View>
+              </TouchableOpacity>
             ))}
           </View>
 
@@ -175,17 +335,23 @@ export function AuthScreen({ mode }: AuthScreenProps) {
               {isSignUp ? "Log in" : "Sign up"}
             </Link>
           </View>
+
+          {/* Required mount point for Clerk captcha bot protection */}
+          <View nativeID="clerk-captcha" />
         </View>
       </ScrollView>
 
       <VerificationModal
+        errorMessage={verificationError}
         visible={isVerificationVisible}
-        onDismiss={() => setIsVerificationVisible(false)}
-        onVerified={() => router.replace("/home")}
-        verifyCode={async (enteredCode) =>
-          /^\d{6}$/.test(enteredCode) && enteredCode !== "000000"
-        }
+        onDismiss={() => {
+          setIsVerificationVisible(false);
+          setVerificationError(null);
+        }}
+        onVerified={() => router.replace("/")}
+        verifyCode={handleVerifyCode}
       />
     </SafeAreaView>
   );
 }
+
