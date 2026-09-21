@@ -13,11 +13,17 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { images } from "@/constants/images";
 import { LANGUAGES } from "@/data/languages";
+import { useLanguageStore } from "@/store/useLanguageStore";
 import { Language } from "@/types/learning";
 
 export default function ChooseLanguage() {
   const router = useRouter();
-  const [selectedLanguageId, setSelectedLanguageId] = useState<string>("spanish");
+  const storedSelectedLanguageId = useLanguageStore((state) => state.selectedLanguageId);
+  const setStoreSelectedLanguageId = useLanguageStore((state) => state.setSelectedLanguageId);
+
+  const [selectedLanguageId, setSelectedLanguageId] = useState<string>(
+    storedSelectedLanguageId || "spanish"
+  );
   const [searchQuery, setSearchQuery] = useState<string>("");
 
   const filteredLanguages = LANGUAGES.filter((lang) => {
@@ -32,7 +38,7 @@ export default function ChooseLanguage() {
   const selectedLanguage = LANGUAGES.find((l) => l.id === selectedLanguageId);
 
   const handleConfirm = () => {
-    // Navigate to home route after selection
+    setStoreSelectedLanguageId(selectedLanguageId);
     router.replace("/home");
   };
 
