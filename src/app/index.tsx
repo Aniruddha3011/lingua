@@ -25,7 +25,8 @@ export default function Index() {
     return <Redirect href="/choose-language" />;
   }
 
-  return <Redirect href="/home" />;
+  return <Redirect href={"/(tabs)" as any} />;
 }
+
 
 
