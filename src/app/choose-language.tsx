@@ -39,7 +39,7 @@ export default function ChooseLanguage() {
 
   const handleConfirm = () => {
     setStoreSelectedLanguageId(selectedLanguageId);
-    router.replace("/home");
+    router.replace("/(tabs)" as any);
   };
 
   return (
