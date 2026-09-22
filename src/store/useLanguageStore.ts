@@ -41,8 +41,8 @@ export const useLanguageStore = create<LanguageState>()(
     {
       name: "dualingo-language-storage",
       storage: createJSONStorage(() => AsyncStorage),
-      onRehydrateStorage: () => (state) => {
-        state?.setHasHydrated(true);
+      onRehydrateStorage: () => () => {
+        useLanguageStore.getState().setHasHydrated(true);
       },
     }
   )

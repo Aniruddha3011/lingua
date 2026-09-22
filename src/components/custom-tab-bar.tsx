@@ -2,9 +2,9 @@ import { Ionicons } from "@expo/vector-icons";
 import { useEffect, useState } from "react";
 import { LayoutChangeEvent, Text, TouchableOpacity, View } from "react-native";
 import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
+    useAnimatedStyle,
+    useSharedValue,
+    withSpring,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -150,7 +150,7 @@ export default function CustomTabBar({
                 key={route.key}
                 accessibilityRole="button"
                 accessibilityState={isFocused ? { selected: true } : {}}
-                accessibilityLabel={descriptors[route.key]?.options?.tabBarAccessibilityLabel}
+                accessibilityLabel={descriptors[route.key]?.options?.tabBarAccessibilityLabel ?? config.label}
                 testID={descriptors[route.key]?.options?.tabBarButtonTestID}
                 activeOpacity={0.8}
                 className="flex-1 items-center justify-center h-full"
