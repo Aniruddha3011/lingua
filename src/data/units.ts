@@ -1,4 +1,7 @@
+import { getLessonsByUnit } from "@/data/lessons";
 import { Unit } from "@/types/learning";
+
+const totalLessonsFor = (unitId: string) => getLessonsByUnit(unitId).length;
 
 export const UNITS: Unit[] = [
   // Spanish Units
@@ -10,7 +13,7 @@ export const UNITS: Unit[] = [
     description: "Learn essential greetings, introductions, and polite expressions.",
     icon: "\ud83d\udc4b",
     color: "#7C3AED",
-    totalLessons: 3,
+    totalLessons: totalLessonsFor("es-unit-1"),
   },
   {
     id: "es-unit-2",
@@ -20,7 +23,7 @@ export const UNITS: Unit[] = [
     description: "Order drinks, request meals, and talk about your favorite foods.",
     icon: "\ud83c\udf55",
     color: "#FF4D4F",
-    totalLessons: 3,
+    totalLessons: totalLessonsFor("es-unit-2"),
   },
   {
     id: "es-unit-3",
@@ -30,7 +33,7 @@ export const UNITS: Unit[] = [
     description: "Navigate cities, ask for directions, and buy transport tickets.",
     icon: "\u2708\ufe0f",
     color: "#208AEF",
-    totalLessons: 3,
+    totalLessons: totalLessonsFor("es-unit-3"),
   },
 
   // French Units
@@ -42,7 +45,7 @@ export const UNITS: Unit[] = [
     description: "Greet people politely and introduce yourself in French.",
     icon: "\ud83d\udc4b",
     color: "#7C3AED",
-    totalLessons: 3,
+    totalLessons: totalLessonsFor("fr-unit-1"),
   },
   {
     id: "fr-unit-2",
@@ -52,7 +55,7 @@ export const UNITS: Unit[] = [
     description: "Order coffee, pastries, and lunch at a French bistro.",
     icon: "\u2615",
     color: "#FF9D00",
-    totalLessons: 3,
+    totalLessons: totalLessonsFor("fr-unit-2"),
   },
 
   // German Units
@@ -64,7 +67,7 @@ export const UNITS: Unit[] = [
     description: "Say hello, goodbye, and introduce yourself in German.",
     icon: "\ud83d\udc4b",
     color: "#208AEF",
-    totalLessons: 2,
+    totalLessons: totalLessonsFor("de-unit-1"),
   },
   {
     id: "de-unit-2",
@@ -74,7 +77,7 @@ export const UNITS: Unit[] = [
     description: "Order food, drinks, and pay the bill in German-speaking countries.",
     icon: "\ud83c\udf7a",
     color: "#10B981",
-    totalLessons: 2,
+    totalLessons: totalLessonsFor("de-unit-2"),
   },
 
   // Japanese Units
@@ -86,7 +89,7 @@ export const UNITS: Unit[] = [
     description: "Master basic Japanese greetings and simple introductions.",
     icon: "\ud83d\ude47",
     color: "#FF9D00",
-    totalLessons: 2,
+    totalLessons: totalLessonsFor("ja-unit-1"),
   },
   {
     id: "ja-unit-2",
@@ -96,7 +99,7 @@ export const UNITS: Unit[] = [
     description: "Order food and drinks at Japanese restaurants.",
     icon: "\ud83c\udf5c",
     color: "#FF4D4F",
-    totalLessons: 2,
+    totalLessons: totalLessonsFor("ja-unit-2"),
   },
 
   // Italian Units
@@ -108,7 +111,7 @@ export const UNITS: Unit[] = [
     description: "Learn polite Italian greetings, coffee ordering, and basics.",
     icon: "\u2615",
     color: "#10B981",
-    totalLessons: 3,
+    totalLessons: totalLessonsFor("it-unit-1"),
   },
 ];
 

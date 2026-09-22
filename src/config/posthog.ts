@@ -4,15 +4,11 @@ const projectToken = process.env.EXPO_PUBLIC_POSTHOG_PROJECT_TOKEN;
 const host = process.env.EXPO_PUBLIC_POSTHOG_HOST;
 
 if (__DEV__ && !projectToken) {
-  throw new Error(
-    "EXPO_PUBLIC_POSTHOG_PROJECT_TOKEN variable required by PostHog is missing or un-configured, this causes events to be silently missed. This error stops appearing once EXPO_PUBLIC_POSTHOG_PROJECT_TOKEN is configured",
-  );
+  console.warn("PostHog is disabled because EXPO_PUBLIC_POSTHOG_PROJECT_TOKEN is not configured.");
 }
 
 if (__DEV__ && !host) {
-  throw new Error(
-    "EXPO_PUBLIC_POSTHOG_HOST variable required by PostHog is missing or un-configured, this causes events to be silently missed. This error stops appearing once EXPO_PUBLIC_POSTHOG_HOST is configured",
-  );
+  console.warn("PostHog is disabled because EXPO_PUBLIC_POSTHOG_HOST is not configured.");
 }
 
 export const posthog =

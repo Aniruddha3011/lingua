@@ -1,5 +1,5 @@
 import { useAuth, useUser } from "@clerk/expo";
-import { Redirect } from "expo-router";
+import { Redirect, router } from "expo-router";
 import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -123,7 +123,12 @@ export default function HomeTab() {
                 <Text className="font-poppins text-[14px] text-white opacity-70 mt-1 mb-4">
                   A1 • {currentUnit ? `Unit ${currentUnit.unitNumber}` : "Unit 1"}
                 </Text>
-                <TouchableOpacity style={styles.continueButton} activeOpacity={0.85}>
+                <TouchableOpacity
+                  style={styles.continueButton}
+                  activeOpacity={0.85}
+                  disabled={!currentLesson}
+                  onPress={currentLesson ? () => router.push("/(tabs)/learn") : undefined}
+                >
                   <Text className="font-poppins-semibold text-[15px] text-brand-purple">Continue</Text>
                 </TouchableOpacity>
               </View>
@@ -139,7 +144,7 @@ export default function HomeTab() {
           {/* ─── Today's Plan ─── */}
           <View>
             <View className="flex-row items-center justify-between mb-3">
-              <Text className="font-poppins-bold text-[17px] text-text-primary">Today's plan</Text>
+              <Text className="font-poppins-bold text-[17px] text-text-primary">Today&apos;s plan</Text>
               <TouchableOpacity activeOpacity={0.7}>
                 <Text className="font-poppins-semibold text-[14px] text-brand-purple">View all</Text>
               </TouchableOpacity>
