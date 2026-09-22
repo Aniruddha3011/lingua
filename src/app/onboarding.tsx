@@ -4,9 +4,15 @@ import { Image, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { images } from "@/constants/images";
+import { posthog } from "@/config/posthog";
 
 export default function Onboarding() {
   const router = useRouter();
+
+  const handleGetStarted = () => {
+    posthog?.capture("onboarding_started");
+    router.replace("/sign-up");
+  };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#FFFFFF" }}>
@@ -80,7 +86,7 @@ export default function Onboarding() {
 
         <TouchableOpacity
           className="mx-7 mb-5 h-[76px] flex-row items-center justify-center rounded-[20px] bg-brand-purple active:bg-brand-deep-purple"
-          onPress={() => router.replace("/sign-up")}
+          onPress={handleGetStarted}
         >
           <Text className="font-poppins-semibold text-[22px] leading-[28px] text-white">
             Get Started

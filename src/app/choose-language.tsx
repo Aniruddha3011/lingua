@@ -13,6 +13,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { images } from "@/constants/images";
 import { LANGUAGES } from "@/data/languages";
+import { posthog } from "@/config/posthog";
 import { useLanguageStore } from "@/store/useLanguageStore";
 import { Language } from "@/types/learning";
 
@@ -38,6 +39,10 @@ export default function ChooseLanguage() {
   const selectedLanguage = LANGUAGES.find((l) => l.id === selectedLanguageId);
 
   const handleConfirm = () => {
+    posthog?.capture("learning_language_selected", {
+      language_id: selectedLanguageId,
+      is_language_change: Boolean(storedSelectedLanguageId),
+    });
     setStoreSelectedLanguageId(selectedLanguageId);
     router.replace("/(tabs)" as any);
   };

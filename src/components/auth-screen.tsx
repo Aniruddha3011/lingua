@@ -15,6 +15,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { images } from "@/constants/images";
+import { posthog } from "@/config/posthog";
 
 import { VerificationModal } from "./verification-modal";
 
@@ -72,6 +73,7 @@ export function AuthScreen({ mode }: AuthScreenProps) {
       return;
     }
 
+    posthog?.capture("sign_up_started", { authentication_method: "email_password" });
     setIsSubmitting(true);
     try {
       const { error } = await signUp.password({ emailAddress: email, password });
@@ -112,6 +114,7 @@ export function AuthScreen({ mode }: AuthScreenProps) {
           const { error: pwdError } = await signIn.password({ emailAddress: email, password });
           if (!pwdError && signIn.status === "complete") {
             await signIn.finalize();
+            posthog?.capture("sign_in_completed", { authentication_method: "password" });
             setIsSubmitting(false);
             router.replace("/");
             return;
@@ -147,6 +150,7 @@ export function AuthScreen({ mode }: AuthScreenProps) {
           return false;
         }
 
+        posthog?.capture("sign_up_completed", { authentication_method: "email_code" });
         return true;
       } catch (err: any) {
         setVerificationError(err?.message || "Verification failed.");
@@ -166,6 +170,7 @@ export function AuthScreen({ mode }: AuthScreenProps) {
             setVerificationError(finalizeError.message || "Failed to finalize session.");
             return false;
           }
+          posthog?.capture("sign_in_completed", { authentication_method: "email_code" });
           return true;
         }
 
@@ -193,6 +198,7 @@ export function AuthScreen({ mode }: AuthScreenProps) {
       });
       if (createdSessionId && setActive) {
         await setActive({ session: createdSessionId });
+        posthog?.capture("sign_in_completed", { authentication_method: provider.toLowerCase() });
         router.replace("/home");
       }
     } catch (err: any) {
