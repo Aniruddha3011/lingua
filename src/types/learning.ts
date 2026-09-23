@@ -98,4 +98,6 @@ export interface Lesson {
   vocabulary: VocabularyItem[];
   phrases: Phrase[];
   aiTeacherPrompt?: string;
+  /** A lesson-specific visual used in the lesson detail header. */
+  imageUrl?: string;
 }

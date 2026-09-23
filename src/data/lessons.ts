@@ -1,298 +1,307 @@
 import { Lesson } from "@/types/learning";
 
+type LessonExtension = Pick<Lesson, "id" | "unitId" | "languageId" | "title" | "description" | "order"> & {
+  word: string;
+  translation: string;
+  imageUrl?: string;
+};
+
+function createPracticeLesson(entry: LessonExtension): Lesson {
+  return {
+    ...entry,
+    type: "standard",
+    xp: 15,
+    durationMinutes: 3,
+    imageUrl: entry.imageUrl ?? `https://picsum.photos/seed/${entry.id}/400/300`,
+    goals: [
+      { id: `${entry.id}-goal-1`, description: `Recognize “${entry.word}”`, xpReward: 5 },
+      { id: `${entry.id}-goal-2`, description: "Complete practice exercises", xpReward: 10 },
+    ],
+    vocabulary: [
+      {
+        id: `${entry.id}-word`,
+        word: entry.word,
+        translation: entry.translation,
+      },
+    ],
+    phrases: [],
+    activities: [
+      {
+        id: `${entry.id}-activity`,
+        type: "multiple-choice",
+        prompt: `What does “${entry.word}” mean?`,
+        options: [entry.translation, "Goodbye", "Please"],
+        correctAnswer: entry.translation,
+      },
+    ],
+  };
+}
+
+const CURRICULUM_EXTENSIONS: Lesson[] = [
+  // --- SPANISH EXTENSIONS (Completing 6 lessons path) ---
+  createPracticeLesson({
+    id: "es-1-4", unitId: "es-unit-3", languageId: "spanish", order: 4,
+    title: "Travel & Directions", description: "Navigate cities, ask for directions, and buy transport tickets.",
+    word: "¿Dónde está...?", translation: "Where is...?",
+    imageUrl: "https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=400&auto=format&fit=crop&q=80",
+  }),
+  createPracticeLesson({
+    id: "es-1-5", unitId: "es-unit-3", languageId: "spanish", order: 5,
+    title: "Shopping", description: "Learn numbers, prices, and how to buy items at a market.",
+    word: "¿Cuánto cuesta?", translation: "How much does it cost?",
+    imageUrl: "https://images.unsplash.com/photo-1483985988355-763728e1935b?w=400&auto=format&fit=crop&q=80",
+  }),
+  createPracticeLesson({
+    id: "es-1-6", unitId: "es-unit-3", languageId: "spanish", order: 6,
+    title: "Family & Friends", description: "Talk about your family, friends, and daily routines.",
+    word: "Mi familia", translation: "My family",
+    imageUrl: "https://images.unsplash.com/photo-1511895426328-dc8714191300?w=400&auto=format&fit=crop&q=80",
+  }),
+
+  // --- FRENCH EXTENSIONS ---
+  createPracticeLesson({
+    id: "fr-1-3", unitId: "fr-unit-1", languageId: "french", order: 3,
+    title: "Introducing Yourself", description: "Share your name and ask someone theirs.", word: "Je m'appelle", translation: "My name is",
+    imageUrl: "https://images.unsplash.com/photo-1517486808906-6ca8b3f04846?w=400&auto=format&fit=crop&q=80",
+  }),
+  createPracticeLesson({
+    id: "fr-2-1", unitId: "fr-unit-2", languageId: "french", order: 4,
+    title: "Ordering Coffee", description: "Order a coffee at a friendly French café.", word: "Un café", translation: "A coffee",
+    imageUrl: "https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=400&auto=format&fit=crop&q=80",
+  }),
+  createPracticeLesson({
+    id: "fr-2-2", unitId: "fr-unit-2", languageId: "french", order: 5,
+    title: "At the Bakery", description: "Choose a pastry and thank the baker.", word: "Une baguette", translation: "A baguette",
+    imageUrl: "https://images.unsplash.com/photo-1509440159596-0249088772ff?w=400&auto=format&fit=crop&q=80",
+  }),
+  createPracticeLesson({
+    id: "fr-2-3", unitId: "fr-unit-2", languageId: "french", order: 6,
+    title: "Paying the Bill", description: "Ask for the bill and pay politely.", word: "L'addition", translation: "The bill",
+    imageUrl: "https://images.unsplash.com/photo-1559925393-8be0ec4767c8?w=400&auto=format&fit=crop&q=80",
+  }),
+
+  // --- GERMAN EXTENSIONS ---
+  createPracticeLesson({
+    id: "de-1-2", unitId: "de-unit-1", languageId: "german", order: 2,
+    title: "Meeting Someone", description: "Introduce yourself and make a new friend.", word: "Ich heiße", translation: "My name is",
+  }),
+  createPracticeLesson({
+    id: "de-1-3", unitId: "de-unit-1", languageId: "german", order: 3,
+    title: "Please & Thank You", description: "Use polite words in everyday German.", word: "Bitte", translation: "Please",
+  }),
+  createPracticeLesson({
+    id: "de-2-1", unitId: "de-unit-2", languageId: "german", order: 4,
+    title: "Ordering a Drink", description: "Order a refreshing drink at a restaurant.", word: "Ein Wasser", translation: "A water",
+  }),
+  createPracticeLesson({
+    id: "de-2-2", unitId: "de-unit-2", languageId: "german", order: 5,
+    title: "Your Favorite Food", description: "Talk about food you enjoy.", word: "Ich mag", translation: "I like",
+  }),
+  createPracticeLesson({
+    id: "de-2-3", unitId: "de-unit-2", languageId: "german", order: 6,
+    title: "Paying at the Table", description: "Ask for the bill after your meal.", word: "Die Rechnung", translation: "The bill",
+  }),
+
+  // --- JAPANESE EXTENSIONS ---
+  createPracticeLesson({
+    id: "ja-1-2", unitId: "ja-unit-1", languageId: "japanese", order: 2,
+    title: "Nice to Meet You", description: "Make a warm first introduction in Japanese.", word: "はじめまして", translation: "Nice to meet you",
+  }),
+  createPracticeLesson({
+    id: "ja-1-3", unitId: "ja-unit-1", languageId: "japanese", order: 3,
+    title: "My Name Is...", description: "Say your name clearly and politely.", word: "わたしは", translation: "I am",
+  }),
+  createPracticeLesson({
+    id: "ja-2-1", unitId: "ja-unit-2", languageId: "japanese", order: 4,
+    title: "A Bowl of Ramen", description: "Order a delicious bowl of ramen.", word: "ラーメン", translation: "Ramen",
+  }),
+  createPracticeLesson({
+    id: "ja-2-2", unitId: "ja-unit-2", languageId: "japanese", order: 5,
+    title: "Something to Drink", description: "Ask for tea or water at a restaurant.", word: "お水", translation: "Water",
+  }),
+  createPracticeLesson({
+    id: "ja-2-3", unitId: "ja-unit-2", languageId: "japanese", order: 6,
+    title: "The Check, Please", description: "Finish your meal with a polite request.", word: "お会計", translation: "The check",
+  }),
+
+  // --- KOREAN EXTENSIONS ---
+  createPracticeLesson({
+    id: "ko-1-1", unitId: "ko-unit-1", languageId: "korean", order: 1,
+    title: "Hello & Thank You", description: "Learn basic Korean greetings like Annyeonghaseyo.", word: "안녕하세요", translation: "Hello",
+  }),
+  createPracticeLesson({
+    id: "ko-1-2", unitId: "ko-unit-1", languageId: "korean", order: 2,
+    title: "Nice to Meet You", description: "Introduce yourself politely in Korean.", word: "반갑습니다", translation: "Nice to meet you",
+  }),
+  createPracticeLesson({
+    id: "ko-1-3", unitId: "ko-unit-1", languageId: "korean", order: 3,
+    title: "Yes & No", description: "Master basic agreement and polite responses.", word: "네 / 아니요", translation: "Yes / No",
+  }),
+  createPracticeLesson({
+    id: "ko-2-1", unitId: "ko-unit-2", languageId: "korean", order: 4,
+    title: "Ordering Delicious Food", description: "Order K-food at a restaurant.", word: "주세요", translation: "Please give me",
+  }),
+  createPracticeLesson({
+    id: "ko-2-2", unitId: "ko-unit-2", languageId: "korean", order: 5,
+    title: "Coffee & Drinks", description: "Order iced americano and tea.", word: "커피", translation: "Coffee",
+  }),
+  createPracticeLesson({
+    id: "ko-2-3", unitId: "ko-unit-2", languageId: "korean", order: 6,
+    title: "Asking the Price", description: "Ask how much an item costs.", word: "얼마예요?", translation: "How much is it?",
+  }),
+
+  // --- CHINESE EXTENSIONS ---
+  createPracticeLesson({
+    id: "zh-1-1", unitId: "zh-unit-1", languageId: "chinese", order: 1,
+    title: "Ni Hao & Goodbye", description: "Learn basic Mandarin greetings.", word: "你好", translation: "Hello",
+  }),
+  createPracticeLesson({
+    id: "zh-1-2", unitId: "zh-unit-1", languageId: "chinese", order: 2,
+    title: "Thank You Very Much", description: "Say thank you and you're welcome.", word: "谢谢", translation: "Thank you",
+  }),
+  createPracticeLesson({
+    id: "zh-1-3", unitId: "zh-unit-1", languageId: "chinese", order: 3,
+    title: "What is Your Name?", description: "Ask and answer names in Chinese.", word: "你叫什么名字？", translation: "What is your name?",
+  }),
+  createPracticeLesson({
+    id: "zh-2-1", unitId: "zh-unit-2", languageId: "chinese", order: 4,
+    title: "Ordering Green Tea", description: "Enjoy tea culture and order drinks.", word: "茶", translation: "Tea",
+  }),
+  createPracticeLesson({
+    id: "zh-2-2", unitId: "zh-unit-2", languageId: "chinese", order: 5,
+    title: "Eating Dumplings", description: "Order delicious food at a restaurant.", word: "饺子", translation: "Dumplings",
+  }),
+  createPracticeLesson({
+    id: "zh-2-3", unitId: "zh-unit-2", languageId: "chinese", order: 6,
+    title: "Asking for the Bill", description: "Pay for your meal politely.", word: "买单", translation: "Pay the bill",
+  }),
+
+  // --- ITALIAN EXTENSIONS ---
+  createPracticeLesson({
+    id: "it-1-2", unitId: "it-unit-1", languageId: "italian", order: 2,
+    title: "Introducing Yourself", description: "Say your name and meet someone new.", word: "Mi chiamo", translation: "My name is",
+  }),
+  createPracticeLesson({
+    id: "it-1-3", unitId: "it-unit-1", languageId: "italian", order: 3,
+    title: "Please & Thank You", description: "Use kind words in everyday conversation.", word: "Per favore", translation: "Please",
+  }),
+  createPracticeLesson({
+    id: "it-2-1", unitId: "it-unit-2", languageId: "italian", order: 4,
+    title: "At the Gelateria", description: "Choose your favorite flavor of gelato.", word: "Un gelato", translation: "An ice cream",
+  }),
+  createPracticeLesson({
+    id: "it-2-2", unitId: "it-unit-2", languageId: "italian", order: 5,
+    title: "Finding a Table", description: "Ask for a table at a restaurant.", word: "Un tavolo", translation: "A table",
+  }),
+  createPracticeLesson({
+    id: "it-2-3", unitId: "it-unit-2", languageId: "italian", order: 6,
+    title: "See You Soon", description: "End a conversation with a friendly goodbye.", word: "A presto", translation: "See you soon",
+  }),
+];
+
 export const LESSONS: Lesson[] = [
-  // --- SPANISH LESSONS ---
-  // Unit 1: Greetings & Basics
+  // --- SPANISH LESSONS (Matches 06-lesson-screen.png sequence) ---
   {
     id: "es-1-1",
-    unitId: "es-unit-1",
+    unitId: "es-unit-3",
     languageId: "spanish",
-    title: "Saying Hello & Goodbye",
-    description: "Learn essential Spanish greetings like Hola, Buenos d\u00edas, and Adi\u00f3s.",
+    title: "Greetings & Introductions",
+    description: "Learn essential Spanish greetings like Hola, Buenos días, and Adiós.",
     type: "standard",
     xp: 15,
     durationMinutes: 3,
     order: 1,
+    imageUrl: "https://images.unsplash.com/photo-1517486808906-6ca8b3f04846?w=400&auto=format&fit=crop&q=80",
     goals: [
       { id: "g1", description: "Recognize 4 basic Spanish greetings", xpReward: 5 },
       { id: "g2", description: "Complete all matching & translation exercises", xpReward: 10 },
     ],
     vocabulary: [
-      {
-        id: "v1",
-        word: "Hola",
-        translation: "Hello / Hi",
-        phonetic: "oh-lah",
-        partOfSpeech: "phrase",
-        exampleSentence: "\u00a1Hola! \u00bfC\u00f3mo est\u00e1s?",
-        exampleTranslation: "Hello! How are you?",
-      },
-      {
-        id: "v2",
-        word: "Buenos d\u00edas",
-        translation: "Good morning",
-        phonetic: "bweh-nohs dee-ahs",
-        partOfSpeech: "phrase",
-        exampleSentence: "Buenos d\u00edas, \u00bfqu\u00e9 tal?",
-        exampleTranslation: "Good morning, how are things?",
-      },
-      {
-        id: "v3",
-        word: "Buenas noches",
-        translation: "Good evening / Good night",
-        phonetic: "bweh-nahs noh-chehs",
-        partOfSpeech: "phrase",
-        exampleSentence: "Buenas noches, hasta ma\u00f1ana.",
-        exampleTranslation: "Good night, see you tomorrow.",
-      },
-      {
-        id: "v4",
-        word: "Adi\u00f3s",
-        translation: "Goodbye",
-        phonetic: "ah-dee-ohs",
-        partOfSpeech: "phrase",
-        exampleSentence: "Adi\u00f3s, amigo.",
-        exampleTranslation: "Goodbye, my friend.",
-      },
+      { id: "v1", word: "Hola", translation: "Hello / Hi", phonetic: "oh-lah" },
+      { id: "v2", word: "Buenos días", translation: "Good morning", phonetic: "bweh-nohs dee-ahs" },
     ],
     phrases: [
-      { id: "p1", text: "\u00a1Hola! \u00bfC\u00f3mo te llamas?", translation: "Hello! What is your name?", speaker: "teacher" },
-      { id: "p2", text: "Me llamo Alex.", translation: "My name is Alex.", speaker: "student" },
+      { id: "p1", text: "¡Hola! ¿Cómo te llamas?", translation: "Hello! What is your name?", speaker: "teacher" },
     ],
     activities: [
       {
         id: "a1",
         type: "multiple-choice",
         prompt: "How do you say 'Hello' in Spanish?",
-        options: ["Hola", "Adi\u00f3s", "Gracias", "Por favor"],
+        options: ["Hola", "Adiós", "Gracias"],
         correctAnswer: "Hola",
-        explanation: "'Hola' means Hello in Spanish.",
-      },
-      {
-        id: "a2",
-        type: "matching",
-        prompt: "Match the Spanish greetings with their English translations.",
-        matchingPairs: [
-          { id: "mp1", left: "Hola", right: "Hello" },
-          { id: "mp2", left: "Buenos d\u00edas", right: "Good morning" },
-          { id: "mp3", left: "Buenas noches", right: "Good night" },
-          { id: "mp4", left: "Adi\u00f3s", right: "Goodbye" },
-        ],
-      },
-      {
-        id: "a3",
-        type: "fill-in-the-blank",
-        prompt: "Complete the sentence: '____ d\u00edas, \u00bfc\u00f3mo est\u00e1s?'",
-        options: ["Buenos", "Adi\u00f3s", "Gracias"],
-        correctAnswer: "Buenos",
-        explanation: "'Buenos d\u00edas' means Good morning.",
       },
     ],
   },
   {
     id: "es-1-2",
-    unitId: "es-unit-1",
+    unitId: "es-unit-3",
     languageId: "spanish",
-    title: "Introducing Yourself",
-    description: "Learn how to state your name, ask how someone is, and say nice to meet you.",
+    title: "Daily Life",
+    description: "Learn how to state your name, ask how someone is, and talk about daily routines.",
     type: "audio",
     xp: 20,
     durationMinutes: 4,
     order: 2,
+    imageUrl: "https://images.unsplash.com/photo-1506784983877-45594efa4cbe?w=400&auto=format&fit=crop&q=80",
     goals: [
       { id: "g3", description: "Practice self-introductions in audio format", xpReward: 10 },
-      { id: "g4", description: "Master 'Me llamo' and 'Mucho gusto'", xpReward: 10 },
     ],
     vocabulary: [
-      {
-        id: "v5",
-        word: "Me llamo",
-        translation: "My name is",
-        phonetic: "meh yah-moh",
-        partOfSpeech: "phrase",
-        exampleSentence: "Me llamo Maria.",
-        exampleTranslation: "My name is Maria.",
-      },
-      {
-        id: "v6",
-        word: "Mucho gusto",
-        translation: "Nice to meet you",
-        phonetic: "moo-choh goos-toh",
-        partOfSpeech: "phrase",
-        exampleSentence: "Mucho gusto en conocerte.",
-        exampleTranslation: "Nice to meet you.",
-      },
-      {
-        id: "v7",
-        word: "\u00bfC\u00f3mo est\u00e1s?",
-        translation: "How are you?",
-        phonetic: "koh-moh ehs-tahs",
-        partOfSpeech: "phrase",
-        exampleSentence: "\u00a1Hola! \u00bfC\u00f3mo est\u00e1s?",
-        exampleTranslation: "Hello! How are you?",
-      },
+      { id: "v5", word: "Me llamo", translation: "My name is", phonetic: "meh yah-moh" },
     ],
-    phrases: [
-      { id: "p3", text: "Me llamo Carlos. \u00bfY t\u00fa?", translation: "My name is Carlos. And you?", speaker: "teacher" },
-      { id: "p4", text: "Mucho gusto, Carlos.", translation: "Nice to meet you, Carlos.", speaker: "student" },
-    ],
-    activities: [
-      {
-        id: "a4",
-        type: "audio-lesson",
-        prompt: "Listen to the introduction dialogue and select the correct response.",
-        options: ["Mucho gusto", "Buenas noches", "Por favor"],
-        correctAnswer: "Mucho gusto",
-        audioUrl: "https://example.com/audio/es-intro.mp3",
-      },
-      {
-        id: "a5",
-        type: "multiple-choice",
-        prompt: "What does 'Mucho gusto' mean?",
-        options: ["Nice to meet you", "See you tomorrow", "Good morning", "Thank you very much"],
-        correctAnswer: "Nice to meet you",
-      },
-    ],
+    phrases: [],
+    activities: [],
   },
   {
     id: "es-1-3",
-    unitId: "es-unit-1",
+    unitId: "es-unit-3",
     languageId: "spanish",
-    title: "AI Teacher: First Conversation",
-    description: "Have a real-time voice lesson with Sofia, your AI Spanish teacher!",
+    title: "At the Café",
+    description: "Order coffee, pastries, and talk about your day at a cozy Spanish café.",
     type: "video-teacher",
     xp: 30,
     durationMinutes: 5,
     order: 3,
+    imageUrl: "https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=400&auto=format&fit=crop&q=80",
     aiTeacherPrompt:
-      "You are Sofia, a friendly, encouraging AI Spanish teacher. Greet the student warmly in Spanish and ask for their name using 'Hola, ¿cómo te llamas?'. Help them practice introducing themselves, using simple Spanish words like 'Me llamo', 'Mucho gusto', and '¿Cómo estás?'. If the student makes a mistake, gently correct them in English and encourage them to repeat in Spanish.",
+      "You are Sofia, a friendly AI Spanish teacher at a cozy café in Madrid.",
     goals: [
-      { id: "g5", description: "Converse in Spanish with your AI Teacher", xpReward: 15 },
-      { id: "g6", description: "Complete a full 2-minute dialogue session", xpReward: 15 },
+      { id: "g5", description: "Converse in Spanish with your AI Teacher at the café", xpReward: 15 },
     ],
     vocabulary: [
-      { id: "v8", word: "Por favor", translation: "Please", phonetic: "pohr fah-vohr" },
-      { id: "v9", word: "Gracias", translation: "Thank you", phonetic: "grah-see-ahs" },
-      { id: "v10", word: "De nada", translation: "You're welcome", phonetic: "deh nah-dah" },
+      { id: "v8", word: "Un café", translation: "A coffee", phonetic: "oon kah-feh" },
     ],
-    phrases: [
-      { id: "p5", text: "\u00a1Hola! Soy Sofia, tu profesora de espa\u00f1ol.", translation: "Hello! I am Sofia, your Spanish teacher.", speaker: "teacher" },
-      { id: "p6", text: "\u00a1Hola Sofia! Encantado de conocerte.", translation: "Hello Sofia! Delighted to meet you.", speaker: "student" },
-    ],
-    activities: [
-      {
-        id: "a6",
-        type: "video-teacher",
-        prompt: "Start your live AI Teacher session with Sofia. Speak naturally and practice your Spanish greetings!",
-        aiTeacherPrompt:
-          "You are Sofia, an AI Spanish teacher. Practice basic greetings and introductions with the student.",
-      },
-    ],
-  },
-
-  // Unit 2: Food & Dining Out
-  {
-    id: "es-2-1",
-    unitId: "es-unit-2",
-    languageId: "spanish",
-    title: "Ordering Drinks & Coffee",
-    description: "Learn how to order agua, caf\u00e9, y cerveza at a caf\u00e9.",
-    type: "standard",
-    xp: 20,
-    durationMinutes: 4,
-    order: 1,
-    goals: [
-      { id: "g7", description: "Learn 5 beverage words in Spanish", xpReward: 10 },
-      { id: "g8", description: "Order drinks using 'Quisiera' or 'Un... por favor'", xpReward: 10 },
-    ],
-    vocabulary: [
-      { id: "v11", word: "Un caf\u00e9", translation: "A coffee", phonetic: "oon kah-feh" },
-      { id: "v12", word: "Agua", translation: "Water", phonetic: "ah-gwah" },
-      { id: "v13", word: "Una cerveza", translation: "A beer", phonetic: "oo-nah sehr-veh-sah" },
-      { id: "v14", word: "La cuenta", translation: "The bill / check", phonetic: "lah kwen-tah" },
-    ],
-    phrases: [
-      { id: "p7", text: "Un caf\u00e9 con leche, por favor.", translation: "A coffee with milk, please.", speaker: "student" },
-      { id: "p8", text: "\u00bfAlgo m\u00e1s?", translation: "Anything else?", speaker: "teacher" },
-    ],
-    activities: [
-      {
-        id: "a7",
-        type: "multiple-choice",
-        prompt: "How do you order 'A coffee, please' in Spanish?",
-        options: ["Un caf\u00e9, por favor", "Una cerveza, gracias", "Hola, me llamo Caf\u00e9", "Buenas noches"],
-        correctAnswer: "Un caf\u00e9, por favor",
-      },
-    ],
+    phrases: [],
+    activities: [],
   },
 
   // --- FRENCH LESSONS ---
-  // Unit 1: Essential Greetings
   {
     id: "fr-1-1",
     unitId: "fr-unit-1",
     languageId: "french",
-    title: "French Greetings & Courtesy",
-    description: "Learn Bonjour, Bonsoir, Merci, and S'il vous pla\u00eet.",
+    title: "Bonjour & Merci",
+    description: "Learn basic French greetings and polite words.",
     type: "standard",
     xp: 15,
     durationMinutes: 3,
     order: 1,
-    goals: [
-      { id: "fg1", description: "Learn basic polite French greetings", xpReward: 5 },
-      { id: "fg2", description: "Complete matching exercises", xpReward: 10 },
-    ],
-    vocabulary: [
-      { id: "fv1", word: "Bonjour", translation: "Hello / Good day", phonetic: "bohn-zhoor" },
-      { id: "fv2", word: "Merci", translation: "Thank you", phonetic: "mehr-see" },
-      { id: "fv3", word: "Au revoir", translation: "Goodbye", phonetic: "oh ruh-vwahr" },
-      { id: "fv4", word: "S'il vous pla\u00eet", translation: "Please", phonetic: "seel voo pleh" },
-    ],
-    phrases: [
-      { id: "fp1", text: "Bonjour! Comment allez-vous?", translation: "Hello! How are you?", speaker: "teacher" },
-      { id: "fp2", text: "Merci beaucoup!", translation: "Thank you very much!", speaker: "student" },
-    ],
-    activities: [
-      {
-        id: "fa1",
-        type: "multiple-choice",
-        prompt: "How do you say 'Thank you' in French?",
-        options: ["Merci", "Bonjour", "Au revoir", "Pardon"],
-        correctAnswer: "Merci",
-      },
-    ],
+    imageUrl: "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=400&auto=format&fit=crop&q=80",
+    goals: [], vocabulary: [], phrases: [], activities: [],
   },
   {
     id: "fr-1-2",
     unitId: "fr-unit-1",
     languageId: "french",
-    title: "AI Teacher: Meeting Jean-Luc",
-    description: "Practice your French pronunciation with your AI tutor Jean-Luc!",
-    type: "video-teacher",
-    xp: 30,
-    durationMinutes: 5,
+    title: "Daily Life in Paris",
+    description: "Express simple daily needs and polite phrases.",
+    type: "audio",
+    xp: 20,
+    durationMinutes: 4,
     order: 2,
-    aiTeacherPrompt:
-      "You are Jean-Luc, a polite and encouraging AI French teacher from Paris. Greet the student with 'Bonjour! Comment vous appelez-vous?'. Help them practice introducing themselves in French using 'Je m'appelle...' and polite phrases like 'Enchanté' and 'Merci'. Provide clear, constructive feedback on their pronunciation.",
-    goals: [
-      { id: "fg3", description: "Practice spoken French with AI Teacher Jean-Luc", xpReward: 15 },
-      { id: "fg4", description: "Master 'Je m'appelle' and 'Enchant\u00e9'", xpReward: 15 },
-    ],
-    vocabulary: [
-      { id: "fv5", word: "Je m'appelle", translation: "My name is", phonetic: "zhuh mah-pell" },
-      { id: "fv6", word: "Enchant\u00e9", translation: "Delighted / Nice to meet you", phonetic: "ahn-shahn-tay" },
-    ],
-    phrases: [
-      { id: "fp3", text: "Bonjour! Je m'appelle Jean-Luc.", translation: "Hello! My name is Jean-Luc.", speaker: "teacher" },
-    ],
-    activities: [
-      {
-        id: "fa2",
-        type: "video-teacher",
-        prompt: "Connect with Jean-Luc for your interactive French voice session.",
-        aiTeacherPrompt: "You are Jean-Luc, a friendly AI French teacher from Paris.",
-      },
-    ],
+    imageUrl: "https://images.unsplash.com/photo-1509440159596-0249088772ff?w=400&auto=format&fit=crop&q=80",
+    goals: [], vocabulary: [], phrases: [], activities: [],
   },
 
   // --- GERMAN LESSONS ---
@@ -301,34 +310,12 @@ export const LESSONS: Lesson[] = [
     unitId: "de-unit-1",
     languageId: "german",
     title: "Hallo & Guten Tag",
-    description: "Learn German greetings like Hallo, Guten Tag, and Tsch\u00fcss.",
+    description: "Learn German greetings like Hallo, Guten Tag, and Tschüss.",
     type: "standard",
     xp: 15,
     durationMinutes: 3,
     order: 1,
-    goals: [
-      { id: "dg1", description: "Learn 4 key German greetings", xpReward: 5 },
-      { id: "dg2", description: "Complete matching and translation exercises", xpReward: 10 },
-    ],
-    vocabulary: [
-      { id: "dv1", word: "Hallo", translation: "Hello", phonetic: "hah-loh" },
-      { id: "dv2", word: "Guten Tag", translation: "Good day / Hello", phonetic: "goo-ten tahk" },
-      { id: "dv3", word: "Danke", translation: "Thank you", phonetic: "dahn-keh" },
-      { id: "dv4", word: "Tsch\u00fcss", translation: "Bye", phonetic: "tchooss" },
-    ],
-    phrases: [
-      { id: "dp1", text: "Hallo! Wie geht's?", translation: "Hello! How are you?", speaker: "teacher" },
-      { id: "dp2", text: "Danke, gut!", translation: "Thanks, good!", speaker: "student" },
-    ],
-    activities: [
-      {
-        id: "da1",
-        type: "multiple-choice",
-        prompt: "What does 'Guten Tag' mean?",
-        options: ["Good day / Hello", "Goodbye", "Please", "Thank you"],
-        correctAnswer: "Good day / Hello",
-      },
-    ],
+    goals: [], vocabulary: [], phrases: [], activities: [],
   },
 
   // --- JAPANESE LESSONS ---
@@ -342,27 +329,7 @@ export const LESSONS: Lesson[] = [
     xp: 15,
     durationMinutes: 3,
     order: 1,
-    goals: [
-      { id: "jg1", description: "Learn basic Japanese greetings", xpReward: 5 },
-      { id: "jg2", description: "Practice Konnichiwa & Arigatou", xpReward: 10 },
-    ],
-    vocabulary: [
-      { id: "jv1", word: "\u3053\u3093\u306b\u3061\u306f (Konnichiwa)", translation: "Hello / Good afternoon", phonetic: "kohn-nee-chee-wah" },
-      { id: "jv2", word: "\u3042\u308a\u304c\u3068\u3046 (Arigatou)", translation: "Thank you", phonetic: "ah-ree-gah-toh" },
-      { id: "jv3", word: "\u3055\u3088\u3046\u306a\u3089 (Sayounara)", translation: "Goodbye", phonetic: "sah-yoh-nah-rah" },
-    ],
-    phrases: [
-      { id: "jp1", text: "\u3053\u3093\u306b\u3061\u306f\uff01\u306f\u3058\u3081\u307e\u3057\u3066\u3002", translation: "Hello! Nice to meet you.", speaker: "teacher" },
-    ],
-    activities: [
-      {
-        id: "ja1",
-        type: "multiple-choice",
-        prompt: "How do you say 'Thank you' in Japanese?",
-        options: ["\u3042\u308a\u304c\u3068\u3046 (Arigatou)", "\u3053\u3093\u306b\u3061\u306f (Konnichiwa)", "\u3055\u3088\u3046\u306a\u3089 (Sayounara)"],
-        correctAnswer: "\u3042\u308a\u304c\u3068\u3046 (Arigatou)",
-      },
-    ],
+    goals: [], vocabulary: [], phrases: [], activities: [],
   },
 
   // --- ITALIAN LESSONS ---
@@ -370,35 +337,16 @@ export const LESSONS: Lesson[] = [
     id: "it-1-1",
     unitId: "it-unit-1",
     languageId: "italian",
-    title: "Ciao & Caffe",
+    title: "Ciao & Caffè",
     description: "Learn Italian greetings and how to order an espresso.",
     type: "standard",
     xp: 15,
     durationMinutes: 3,
     order: 1,
-    goals: [
-      { id: "ig1", description: "Master Italian greetings Ciao & Buongiorno", xpReward: 5 },
-      { id: "ig2", description: "Order an espresso like a local", xpReward: 10 },
-    ],
-    vocabulary: [
-      { id: "iv1", word: "Ciao", translation: "Hello / Bye", phonetic: "chow" },
-      { id: "iv2", word: "Buongiorno", translation: "Good morning / Hello", phonetic: "bwohn-johr-noh" },
-      { id: "iv3", word: "Un caf\u00e8", translation: "An espresso coffee", phonetic: "oon kah-feh" },
-      { id: "iv4", word: "Grazie", translation: "Thank you", phonetic: "grah-tsee-eh" },
-    ],
-    phrases: [
-      { id: "ip1", text: "Ciao! Un caf\u00e8, per favore.", translation: "Hello! A coffee, please.", speaker: "student" },
-    ],
-    activities: [
-      {
-        id: "ia1",
-        type: "multiple-choice",
-        prompt: "What does 'Grazie' mean in Italian?",
-        options: ["Thank you", "Hello", "Coffee", "Goodbye"],
-        correctAnswer: "Thank you",
-      },
-    ],
+    goals: [], vocabulary: [], phrases: [], activities: [],
   },
+
+  ...CURRICULUM_EXTENSIONS,
 ];
 
 export function getLessons(): Lesson[] {
@@ -415,4 +363,8 @@ export function getLessonsByLanguage(languageId: string): Lesson[] {
 
 export function getLessonById(id: string): Lesson | undefined {
   return LESSONS.find((lesson) => lesson.id === id);
+}
+
+export function getLessonImageUrl(lesson: Lesson): string {
+  return lesson.imageUrl ?? `https://picsum.photos/seed/${lesson.id}/400/300`;
 }
