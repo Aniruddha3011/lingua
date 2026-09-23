@@ -13,7 +13,7 @@ export const LANGUAGES: Language[] = [
     popular: true,
     learnersCount: "28.4M learners",
     totalUnits: 3,
-    totalLessons: 9,
+    totalLessons: 6,
   },
   {
     id: "french",
@@ -41,7 +41,7 @@ export const LANGUAGES: Language[] = [
     popular: true,
     learnersCount: "12.7M learners",
     totalUnits: 2,
-    totalLessons: 4,
+    totalLessons: 6,
   },
   {
     id: "german",
@@ -55,7 +55,7 @@ export const LANGUAGES: Language[] = [
     popular: true,
     learnersCount: "8.1M learners",
     totalUnits: 2,
-    totalLessons: 4,
+    totalLessons: 6,
   },
   {
     id: "italian",
@@ -69,7 +69,7 @@ export const LANGUAGES: Language[] = [
     popular: false,
     learnersCount: "5.2M learners",
     totalUnits: 1,
-    totalLessons: 3,
+    totalLessons: 6,
   },
 ];
 
