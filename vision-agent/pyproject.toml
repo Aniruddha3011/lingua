@@ -1,0 +1,20 @@
+[project]
+name = "vision-agent"
+version = "0.1.0"
+description = "Luna — AI language teacher powered by OpenAI Realtime + Stream Edge"
+authors = [
+    { name = "Aniruddha3011", email = "aniruddhamaruti2005@gmail.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "python-dotenv>=1.2.3",
+    "vision-agents[getstream,openai]>=0.6.9",
+]
+
+# CLI entry point: `luna run` or `luna serve`
+[project.scripts]
+luna = "vision_agent.__main__:runner.cli"
+
+[build-system]
+requires = ["uv_build>=0.11.21,<0.12.0"]
+build-backend = "uv_build"

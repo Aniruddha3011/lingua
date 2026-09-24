@@ -1,13 +1,17 @@
+import { useUser } from "@clerk/expo";
 import { Ionicons } from "@expo/vector-icons";
 import { Image as ExpoImage } from "expo-image";
 import { router, useLocalSearchParams } from "expo-router";
-import { useState } from "react";
-import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { images } from "@/constants/images";
-import { getLessonById } from "@/data/lessons";
 import { getLanguageById } from "@/data/languages";
+import { getLessonById } from "@/data/lessons";
+import { startAgent, stopAgent, type AgentStatus } from "@/lib/agent";
+import { fetchStreamAudioToken, type StreamAudioCallStatus } from "@/lib/stream";
+import { useLanguageStore } from "@/store/useLanguageStore";
 
 const DEFAULT_PHRASES: Record<string, { phrase: string; translation: string }> = {
   spanish: { phrase: "¡Muy bien!", translation: "That was great! 👏" },
@@ -21,28 +25,142 @@ const DEFAULT_PHRASES: Record<string, { phrase: string; translation: string }> =
 
 export default function AITeacherAudioLessonScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const lesson = id ? getLessonById(id) : undefined;
-  const language = lesson ? getLanguageById(lesson.languageId) : undefined;
+  const { user } = useUser();
+  const selectedLanguageId = useLanguageStore((state) => state.selectedLanguageId);
 
-  // Interactive session control states
+  const lesson = id ? getLessonById(id) : undefined;
+  const language = lesson
+    ? getLanguageById(lesson.languageId)
+    : selectedLanguageId
+    ? getLanguageById(selectedLanguageId)
+    : undefined;
+
+  // Stream Audio Call Session States
+  const [callStatus, setCallStatus] = useState<StreamAudioCallStatus>("initializing");
+  const [streamCallId, setStreamCallId] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Luna AI teacher agent states
+  const [agentStatus, setAgentStatus] = useState<AgentStatus>("idle");
+  const agentCallRef = useRef<{ callType: string; callId: string } | null>(null);
+
+  // Audio & UI Controls
   const [isMicActive, setIsMicActive] = useState(true);
   const [isCameraActive, setIsCameraActive] = useState(true);
   const [showSubtitles, setShowSubtitles] = useState(true);
   const [phraseIndex, setPhraseIndex] = useState(0);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
 
-  // Lesson phrase selection
-  const languageKey = lesson?.languageId ?? "spanish";
+  // User Profile Info
+  const userName = user?.fullName ?? user?.firstName ?? "Learner";
+  const userAvatarUrl =
+    user?.imageUrl ??
+    "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80";
+
+  // Phrase selection
+  const languageKey = lesson?.languageId ?? selectedLanguageId ?? "spanish";
   const defaultPhrase = DEFAULT_PHRASES[languageKey] ?? DEFAULT_PHRASES.spanish;
 
-  const currentPhrase = lesson?.phrases && lesson.phrases.length > 0
-    ? {
-        phrase: lesson.phrases[phraseIndex % lesson.phrases.length].text,
-        translation: lesson.phrases[phraseIndex % lesson.phrases.length].translation,
-      }
-    : defaultPhrase;
+  const currentPhrase =
+    lesson?.phrases && lesson.phrases.length > 0
+      ? {
+          phrase: lesson.phrases[phraseIndex % lesson.phrases.length].text,
+          translation: lesson.phrases[phraseIndex % lesson.phrases.length].translation,
+        }
+      : defaultPhrase;
 
-  // Next phrase trigger
+  // ─── Initialize Stream Call + Start Luna Agent ───
+  useEffect(() => {
+    let isMounted = true;
+
+    async function initStreamCall() {
+      setCallStatus("connecting");
+      setErrorMessage(null);
+      setAgentStatus("idle");
+
+      try {
+        const tokenRes = await fetchStreamAudioToken({
+          userId: user?.id,
+          userName,
+          userImage: userAvatarUrl,
+          lessonId: lesson?.id,
+          languageId: language?.id,
+        });
+
+        if (!isMounted) return;
+
+        if (!tokenRes.success) {
+          setErrorMessage(tokenRes.error || "Could not connect to Stream Audio");
+          setCallStatus("error");
+          return;
+        }
+
+        setStreamCallId(tokenRes.callId);
+        setCallStatus("joined");
+
+        // ── Start Luna after Stream join ──────────────────────────────
+        const callType = "audio_room";
+        const callId = tokenRes.callId;
+        agentCallRef.current = { callType, callId };
+        setAgentStatus("connecting");
+
+        const agentRes = await startAgent({
+          callType,
+          callId,
+          lesson,
+          language,
+        });
+
+        if (!isMounted) return;
+
+        if (agentRes.success) {
+          setAgentStatus("connected");
+        } else {
+          // Luna unavailable — lesson still works, just without AI teacher
+          setAgentStatus("failed");
+          console.warn("[Luna] Could not start agent:", agentRes.error);
+        }
+      } catch (err) {
+        if (isMounted) {
+          setErrorMessage(err instanceof Error ? err.message : "Connection failed");
+          setCallStatus("error");
+          setAgentStatus("failed");
+        }
+      }
+    }
+
+    void initStreamCall();
+
+    return () => {
+      isMounted = false;
+      // Cleanup: stop Luna when the screen unmounts (e.g. back button)
+      if (agentCallRef.current) {
+        void stopAgent(agentCallRef.current);
+        agentCallRef.current = null;
+      }
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lesson?.id, language?.id, user?.id]);
+
+  // ─── Control Handlers ───
+  const handleToggleMic = () => {
+    setIsMicActive((prev) => {
+      const nextState = !prev;
+      if (callStatus === "joined" || callStatus === "muted") {
+        setCallStatus(nextState ? "joined" : "muted");
+      }
+      return nextState;
+    });
+  };
+
+  const handleToggleCamera = () => {
+    setIsCameraActive((prev) => !prev);
+  };
+
+  const handleToggleSubtitles = () => {
+    setShowSubtitles((prev) => !prev);
+  };
+
   const handlePlaySound = () => {
     setIsPlayingAudio(true);
     setTimeout(() => {
@@ -52,7 +170,114 @@ export default function AITeacherAudioLessonScreen() {
   };
 
   const handleEndCall = () => {
-    router.back();
+    setCallStatus("ended");
+    setAgentStatus("idle");
+    // Stop Luna cleanly before navigating away
+    if (agentCallRef.current) {
+      void stopAgent(agentCallRef.current);
+      agentCallRef.current = null;
+    }
+    setTimeout(() => {
+      router.back();
+    }, 300);
+  };
+
+  const handleRetryCall = () => {
+    setCallStatus("connecting");
+    setErrorMessage(null);
+    setTimeout(() => {
+      setCallStatus("joined");
+    }, 1000);
+  };
+
+  // ─── Status Badge Helpers ───
+  const getStatusBadge = () => {
+    switch (callStatus) {
+      case "connecting":
+      case "initializing":
+        return (
+          <View className="flex-row items-center">
+            <ActivityIndicator size="small" color="#EAB308" style={{ marginRight: 6 }} />
+            <Text className="font-poppins-medium text-[12px] text-[#EAB308]">
+              Connecting...
+            </Text>
+          </View>
+        );
+      case "joined":
+        return (
+          <View className="flex-row items-center">
+            <View className="mr-1.5 size-2 rounded-full bg-[#22C55E]" />
+            <Text className="font-poppins-medium text-[12px] text-[#22C55E]">
+              Live
+            </Text>
+          </View>
+        );
+      case "muted":
+        return (
+          <View className="flex-row items-center">
+            <View className="mr-1.5 size-2 rounded-full bg-[#EF4444]" />
+            <Text className="font-poppins-medium text-[12px] text-[#EF4444]">
+              Mic Muted
+            </Text>
+          </View>
+        );
+      case "ended":
+        return (
+          <View className="flex-row items-center">
+            <View className="mr-1.5 size-2 rounded-full bg-[#9CA3AF]" />
+            <Text className="font-poppins-medium text-[12px] text-[#9CA3AF]">
+              Ended
+            </Text>
+          </View>
+        );
+      case "error":
+        return (
+          <View className="flex-row items-center">
+            <View className="mr-1.5 size-2 rounded-full bg-[#EF4444]" />
+            <Text className="font-poppins-medium text-[12px] text-[#EF4444]">
+              Connection Error
+            </Text>
+          </View>
+        );
+      default:
+        return (
+          <View className="flex-row items-center">
+            <View className="mr-1.5 size-2 rounded-full bg-[#22C55E]" />
+            <Text className="font-poppins-medium text-[12px] text-[#22C55E]">
+              Online
+            </Text>
+          </View>
+        );
+    }
+  };
+
+  // Agent status pill displayed inside the stage area
+  const getAgentPill = () => {
+    switch (agentStatus) {
+      case "idle":
+        return null;
+      case "connecting":
+        return (
+          <View style={styles.agentPill}>
+            <ActivityIndicator size="small" color="#6C4EF5" style={{ marginRight: 6 }} />
+            <Text style={styles.agentPillText}>Luna joining...</Text>
+          </View>
+        );
+      case "connected":
+        return (
+          <View style={[styles.agentPill, styles.agentPillConnected]}>
+            <View style={styles.agentDot} />
+            <Text style={[styles.agentPillText, { color: "#16A34A" }]}>Luna is here ✦</Text>
+          </View>
+        );
+      case "failed":
+        return (
+          <View style={[styles.agentPill, styles.agentPillFailed]}>
+            <Ionicons name="warning-outline" size={13} color="#D97706" style={{ marginRight: 4 }} />
+            <Text style={[styles.agentPillText, { color: "#D97706" }]}>AI teacher offline</Text>
+          </View>
+        );
+    }
   };
 
   return (
@@ -62,7 +287,7 @@ export default function AITeacherAudioLessonScreen() {
         <TouchableOpacity
           accessibilityLabel="Go back"
           className="mr-3 size-9 items-center justify-center rounded-full active:bg-[#F5F6F8]"
-          onPress={() => router.back()}
+          onPress={handleEndCall}
         >
           <Ionicons name="chevron-back" size={24} color="#0D132B" />
         </TouchableOpacity>
@@ -71,12 +296,7 @@ export default function AITeacherAudioLessonScreen() {
           <Text className="font-poppins-bold text-[18px] leading-[23px] text-text-primary" numberOfLines={1}>
             AI Teacher
           </Text>
-          <View className="flex-row items-center mt-0.5">
-            <View className="mr-1.5 size-2 rounded-full bg-[#22C55E]" />
-            <Text className="font-poppins-medium text-[12px] text-[#22C55E]">
-              Online
-            </Text>
-          </View>
+          <View className="mt-0.5">{getStatusBadge()}</View>
         </View>
 
         {/* Header Badges */}
@@ -100,7 +320,7 @@ export default function AITeacherAudioLessonScreen() {
         contentContainerStyle={{ flexGrow: 1, paddingBottom: 24 }}
         showsVerticalScrollIndicator={false}
       >
-        {/* ─── Main Stage Area (Teacher & Camera Call View) ─── */}
+        {/* ─── Main Stage Area (Teacher & Student Call View) ─── */}
         <View style={styles.stageCard}>
           {/* Indoor Background Room Image / Texture */}
           <View style={styles.roomBackground}>
@@ -121,7 +341,7 @@ export default function AITeacherAudioLessonScreen() {
           <View style={styles.studentCameraInset}>
             {isCameraActive ? (
               <ExpoImage
-                source={{ uri: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80" }}
+                source={{ uri: userAvatarUrl }}
                 style={StyleSheet.absoluteFill}
                 contentFit="cover"
               />
@@ -130,10 +350,53 @@ export default function AITeacherAudioLessonScreen() {
                 <Ionicons name="videocam-off-outline" size={24} color="#A0AEC0" />
               </View>
             )}
+            {/* Student name overlay */}
+            <View style={styles.studentNameOverlay}>
+              <Text style={styles.studentNameText} numberOfLines={1}>
+                {userName}
+              </Text>
+            </View>
           </View>
 
+          {/* Connecting / Error Banner Overlays */}
+          {callStatus === "connecting" && (
+            <View style={styles.connectingOverlay}>
+              <ActivityIndicator size="large" color="#6C4EF5" />
+              <Text className="mt-2 font-poppins-semibold text-[14px] text-brand-purple">
+                Joining Stream audio session...
+              </Text>
+            </View>
+          )}
+
+          {callStatus === "error" && (
+            <View style={styles.errorOverlay}>
+              <Ionicons name="alert-circle" size={32} color="#EF4444" />
+              <Text className="mt-1 font-poppins-semibold text-[14px] text-[#EF4444] text-center">
+                {errorMessage || "Connection error"}
+              </Text>
+              <TouchableOpacity
+                className="mt-3 rounded-xl bg-[#6C4EF5] px-4 py-2"
+                onPress={handleRetryCall}
+              >
+                <Text className="font-poppins-semibold text-[13px] text-white">
+                  Retry Connection
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* Session Banner Tag */}
+          <View style={styles.sessionBannerTag}>
+            <Text className="font-poppins-semibold text-[11px] text-[#6C4EF5]">
+              {language?.name ?? "Spanish"} • {lesson?.title ?? "AI Voice Lesson"}
+            </Text>
+          </View>
+
+          {/* Luna Agent Status Pill */}
+          {getAgentPill()}
+
           {/* Teacher Response Speech Bubble */}
-          {showSubtitles && (
+          {showSubtitles && callStatus !== "error" && (
             <View style={styles.speechBubbleCard}>
               <View className="flex-1 pr-3">
                 <Text className="font-poppins-bold text-[17px] leading-[22px] text-[#0D132B]">
@@ -177,7 +440,7 @@ export default function AITeacherAudioLessonScreen() {
                 styles.controlButton,
                 !isCameraActive && styles.controlButtonOff,
               ]}
-              onPress={() => setIsCameraActive((prev) => !prev)}
+              onPress={handleToggleCamera}
             >
               <Ionicons
                 name={isCameraActive ? "videocam" : "videocam-off"}
@@ -198,7 +461,7 @@ export default function AITeacherAudioLessonScreen() {
                 styles.controlButton,
                 !isMicActive && styles.controlButtonMuted,
               ]}
-              onPress={() => setIsMicActive((prev) => !prev)}
+              onPress={handleToggleMic}
             >
               <Ionicons
                 name={isMicActive ? "mic" : "mic-off"}
@@ -207,7 +470,7 @@ export default function AITeacherAudioLessonScreen() {
               />
             </TouchableOpacity>
             <Text className="mt-1.5 font-poppins-medium text-[12px] text-[#6B7280]">
-              Mic
+              {isMicActive ? "Mic" : "Muted"}
             </Text>
           </View>
 
@@ -219,7 +482,7 @@ export default function AITeacherAudioLessonScreen() {
                 styles.controlButton,
                 showSubtitles && styles.controlButtonActive,
               ]}
-              onPress={() => setShowSubtitles((prev) => !prev)}
+              onPress={handleToggleSubtitles}
             >
               <Ionicons
                 name="text"
@@ -360,6 +623,56 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 4,
   },
+  studentNameOverlay: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(13, 19, 43, 0.65)",
+    paddingVertical: 2,
+    paddingHorizontal: 4,
+    alignItems: "center",
+  },
+  studentNameText: {
+    fontFamily: "Poppins-Medium",
+    fontSize: 10,
+    color: "#FFFFFF",
+  },
+  sessionBannerTag: {
+    position: "absolute",
+    top: 16,
+    left: 16,
+    backgroundColor: "rgba(255, 255, 255, 0.92)",
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderWidth: 1,
+    borderColor: "#EEF0F4",
+  },
+  connectingOverlay: {
+    position: "absolute",
+    top: 60,
+    left: 16,
+    right: 16,
+    backgroundColor: "rgba(255, 255, 255, 0.95)",
+    borderRadius: 16,
+    padding: 12,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#E8E0FF",
+  },
+  errorOverlay: {
+    position: "absolute",
+    top: 60,
+    left: 16,
+    right: 16,
+    backgroundColor: "rgba(255, 255, 255, 0.96)",
+    borderRadius: 16,
+    padding: 16,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#FECACA",
+  },
   speechBubbleCard: {
     position: "absolute",
     left: 16,
@@ -463,4 +776,39 @@ const styles = StyleSheet.create({
     height: 36,
     backgroundColor: "#F0F2F5",
   },
+  // Agent status pill styles
+  agentPill: {
+    position: "absolute",
+    bottom: 72,
+    left: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255, 255, 255, 0.93)",
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: "#E8E0FF",
+  },
+  agentPillConnected: {
+    borderColor: "#BBF7D0",
+    backgroundColor: "rgba(240, 253, 244, 0.95)",
+  },
+  agentPillFailed: {
+    borderColor: "#FDE68A",
+    backgroundColor: "rgba(255, 251, 235, 0.95)",
+  },
+  agentDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#22C55E",
+    marginRight: 6,
+  },
+  agentPillText: {
+    fontFamily: "Poppins-Medium",
+    fontSize: 12,
+    color: "#6C4EF5",
+  },
 });
+
