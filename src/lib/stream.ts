@@ -1,3 +1,6 @@
+import Constants from "expo-constants";
+import { Platform } from "react-native";
+
 export interface StreamTokenParams {
   userId?: string;
   userName?: string;
@@ -26,49 +29,90 @@ export type StreamAudioCallStatus =
   | "ended"
   | "error";
 
+export function getStreamAudioCallId(params: StreamTokenParams): string {
+  return `audio-lesson-${params.lessonId || "session"}-${params.languageId || "general"}`;
+}
+
+function getApiBaseUrls(): string[] {
+  const urls: string[] = [];
+
+  if (Platform.OS === "web" && typeof window !== "undefined") {
+    urls.push(window.location.origin);
+  }
+
+  const hostUri =
+    Constants.expoConfig?.hostUri ||
+    Constants.manifest2?.extra?.expoGo?.debuggerHost;
+
+  if (hostUri) {
+    urls.push(`http://${hostUri.split(":")[0]}:8081`);
+  }
+
+  if (Platform.OS === "android") {
+    urls.push("http://10.0.2.2:8081");
+  }
+
+  urls.push("http://127.0.0.1:8081");
+  urls.push("http://localhost:8081");
+
+  return [...new Set(urls)];
+}
+
+function failedTokenResponse(
+  params: StreamTokenParams,
+  error: string
+): StreamTokenResponse {
+  const userId = (params.userId || "").replace(/[^a-zA-Z0-9_-]/g, "_");
+
+  return {
+    success: false,
+    apiKey: "",
+    token: "",
+    callId: getStreamAudioCallId(params),
+    userId,
+    userName: params.userName || "Learner",
+    userImage: params.userImage || "",
+    error,
+  };
+}
+
 export async function fetchStreamAudioToken(
   params: StreamTokenParams
 ): Promise<StreamTokenResponse> {
-  const fallbackApiKey =
-    process.env.EXPO_PUBLIC_STREAM_API_KEY || "jvz8653cfrub";
-  const cleanUserId = (params.userId || "guest_learner")
-    .replace(/[^a-zA-Z0-9_-]/g, "_");
+  const cleanUserId = (params.userId || "").replace(/[^a-zA-Z0-9_-]/g, "_");
 
-  try {
-    const response = await fetch("/api/stream-token", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        userId: cleanUserId,
-        userName: params.userName || "Learner",
-        userImage: params.userImage,
-        lessonId: params.lessonId,
-        languageId: params.languageId,
-      }),
-    });
-
-    if (response.ok) {
-      const data = await response.json();
-      if (data.success) {
-        return data;
-      }
-    }
-  } catch {
-    // Silent catch for dev/offline fallback
+  if (!cleanUserId) {
+    return failedTokenResponse(params, "Sign in before starting an audio lesson.");
   }
 
-  // Client-side fallback if server route is unreachable
-  return {
-    success: true,
-    apiKey: fallbackApiKey,
-    token: `dev-token-${cleanUserId}`,
-    callId: `audio-lesson-${params.lessonId || "session"}-${params.languageId || "es"}`,
-    userId: cleanUserId,
-    userName: params.userName || "Learner",
-    userImage:
-      params.userImage ||
-      "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80",
-  };
+  let lastError = "Could not reach the Expo API server.";
+
+  for (const baseUrl of getApiBaseUrls()) {
+    try {
+      const response = await fetch(`${baseUrl}/api/stream-token`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: cleanUserId,
+          userName: params.userName || "Learner",
+          userImage: params.userImage,
+          lessonId: params.lessonId,
+          languageId: params.languageId,
+        }),
+        signal: AbortSignal.timeout(6000),
+      });
+
+      const data = (await response.json().catch(() => ({}))) as Partial<StreamTokenResponse>;
+
+      if (response.ok && data.success && data.apiKey && data.token) {
+        return data as StreamTokenResponse;
+      }
+
+      lastError = data.error || `Token server returned status ${response.status}.`;
+    } catch (error) {
+      lastError = error instanceof Error ? error.message : "Network request failed.";
+    }
+  }
+
+  return failedTokenResponse(params, lastError);
 }

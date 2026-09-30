@@ -12,6 +12,7 @@ function generateStreamToken(userId: string, secret: string): string {
   const header = JSON.stringify({ alg: "HS256", typ: "JWT" });
   const payload = JSON.stringify({
     user_id: userId,
+    role: "admin",
     iat: Math.floor(Date.now() / 1000),
     exp: Math.floor(Date.now() / 1000) + 3600 * 24,
   });
@@ -35,20 +36,30 @@ export async function POST(request: Request) {
     const body = await request.json().catch(() => ({}));
     const { userId, userName, userImage, lessonId, languageId } = body;
 
-    const apiKey =
-      process.env.EXPO_PUBLIC_STREAM_API_KEY ||
-      process.env.STREAM_API_KEY ||
-      "jvz8653cfrub";
+    const apiKey = process.env.EXPO_PUBLIC_STREAM_API_KEY || process.env.STREAM_API_KEY;
+    const apiSecret = process.env.STREAM_API_SECRET || process.env.STREAM_SECRET_KEY;
 
-    const apiSecret =
-      process.env.STREAM_API_SECRET ||
-      process.env.STREAM_SECRET_KEY ||
-      "2pbfearqw3xwraqfep5fhw2c59ww4d9jqp4x2rujb2xdaqpth5fwptbces8kczfe";
+    if (!apiKey || !apiSecret) {
+      return Response.json(
+        {
+          success: false,
+          error: "Stream server credentials are not configured.",
+        },
+        { status: 503 }
+      );
+    }
 
     // Clean user ID for Stream requirements (alphanumeric, -, _)
-    const cleanUserId = (userId || "guest_learner")
+    const cleanUserId = (userId || "")
       .toString()
       .replace(/[^a-zA-Z0-9_-]/g, "_");
+
+    if (!cleanUserId) {
+      return Response.json(
+        { success: false, error: "A signed-in user ID is required." },
+        { status: 400 }
+      );
+    }
 
     const token = generateStreamToken(cleanUserId, apiSecret);
     const callId = `audio-lesson-${lessonId || "session"}-${languageId || "general"}`;

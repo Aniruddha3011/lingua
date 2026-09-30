@@ -7,5 +7,6 @@
   "editor.tokenColorCustomizations": {
     "comments": "",
     "textMateRules": []
-  }
+  },
+  "java.compile.nullAnalysis.mode": "automatic"
 }

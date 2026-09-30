@@ -7,6 +7,7 @@ import { ClerkProvider, useAuth, useUser } from "@clerk/expo";
 import { tokenCache } from "@clerk/expo/token-cache";
 import { PostHogProvider } from "posthog-react-native";
 
+import { StreamVideoProvider } from "@/components/stream-video-provider";
 import { posthog } from "@/config/posthog";
 import { fontAssets } from "@/theme";
 
@@ -75,10 +76,11 @@ export default function RootLayout() {
   const app = (
     <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
       <PostHogIdentity />
-      <Stack screenOptions={{ headerShown: false }} />
+      <StreamVideoProvider>
+        <Stack screenOptions={{ headerShown: false }} />
+      </StreamVideoProvider>
     </ClerkProvider>
   );
 
   return posthog ? <PostHogProvider client={posthog}>{app}</PostHogProvider> : app;
 }
-
