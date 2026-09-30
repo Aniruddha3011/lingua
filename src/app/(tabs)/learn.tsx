@@ -1,5 +1,4 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Image as ExpoImage } from "expo-image";
 import { Redirect, router, type Href } from "expo-router";
 import { useState } from "react";
 import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";

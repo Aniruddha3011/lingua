@@ -20,11 +20,11 @@ from typing import Any
 
 from dotenv import load_dotenv
 from vision_agents.core import Agent, AgentLauncher, Runner, ServeOptions, User
+from vision_agents.core.instructions import Instructions
 from vision_agents.plugins.getstream import Edge
 from vision_agents.plugins.openai import Realtime
 
 # ── Environment ───────────────────────────────────────────────────────────────
-# Load vision-agent/.env first, then fall back to the parent repo .env
 _HERE = Path(__file__).parent          # src/vision_agent/
 _VISION_AGENT_ROOT = _HERE.parent.parent   # vision-agent/
 _REPO_ROOT = _VISION_AGENT_ROOT.parent    # DualingoApp/
@@ -37,6 +37,7 @@ logger = logging.getLogger(__name__)
 # ── Constants ─────────────────────────────────────────────────────────────────
 AGENT_USER_ID = os.getenv("AGENT_USER_ID", "ai-language-teacher")
 AGENT_NAME = os.getenv("AGENT_NAME", "Luna")
+
 
 # Read the teacher base instructions from file at import time.
 _INSTRUCTIONS_FILE = _VISION_AGENT_ROOT / "instructions.md"
@@ -61,10 +62,6 @@ def _build_instructions(custom_data: dict[str, Any]) -> str:
     """
     Combine the base teacher instructions with the lesson context
     extracted from the Stream call's custom_data field.
-
-    custom_data keys (all optional):
-        lesson_id, lesson_title, language_id, language_name,
-        goals, vocabulary, phrases, ai_teacher_prompt
     """
     language_name = custom_data.get("language_name") or "the target language"
     lesson_title = custom_data.get("lesson_title") or "General Conversation"
@@ -76,17 +73,17 @@ def _build_instructions(custom_data: dict[str, Any]) -> str:
     sections = [BASE_INSTRUCTIONS, ""]
 
     # ── Lesson context injected at runtime ──────────────────────────────────
-    sections.append(f"## Current Lesson Context\n")
-    sections.append(f"- **Language you are teaching:** {language_name}")
-    sections.append(f"- **Lesson title:** {lesson_title}")
+    sections.append(f"## Current Lesson Focus\n")
+    sections.append(f"- **Target Language:** {language_name}")
+    sections.append(f"- **Lesson Title:** {lesson_title}")
 
     if goals:
-        sections.append("\n**Lesson goals:**")
+        sections.append("\n**Lesson Goals:**")
         for g in goals:
             sections.append(f"  - {g.get('description', '')}")
 
     if vocabulary:
-        sections.append("\n**Vocabulary to teach this session:**")
+        sections.append("\n**Target Vocabulary for this Session:**")
         for v in vocabulary:
             word = v.get("word", "")
             translation = v.get("translation", "")
@@ -97,50 +94,71 @@ def _build_instructions(custom_data: dict[str, Any]) -> str:
             sections.append(line)
 
     if phrases:
-        sections.append("\n**Key phrases for this lesson:**")
+        sections.append("\n**Key Phrases for this Session:**")
         for p in phrases:
             text = p.get("text", "")
             translation = p.get("translation", "")
             sections.append(f"  - \"{text}\" → \"{translation}\"")
 
     if ai_teacher_prompt:
-        sections.append(f"\n**Extra teaching note:** {ai_teacher_prompt}")
+        sections.append(f"\n**Teacher Personality & Context Note:** {ai_teacher_prompt}")
 
     sections.append(
-        "\nFocus this session on the vocabulary and phrases listed above. "
-        "Introduce them one at a time. Ask the student to repeat after you."
+        f"\n### Strict Spoken Execution Rules:\n"
+        f"1. You are teaching ONLY {language_name} for the lesson '{lesson_title}'. Do NOT switch to other languages or teach unlisted topics.\n"
+        f"2. Keep every single response to STRICTLY ONE OR TWO short, natural conversational sentences in English.\n"
+        f"3. Speak mostly English. Say target {language_name} words clearly and slowly, immediately giving the English translation.\n"
+        f"4. Listen to what the student says: if they said the current word correctly (or close enough), praise them ('Spot on!') and immediately advance to the NEXT vocabulary item or phrase in the list.\n"
+        f"5. Once the individual words are practiced, ask them to say the FULL sentence together, and celebrate when they do!\n"
+        f"6. Do NOT use special symbols, emojis, or markdown in your speech."
     )
 
     return "\n".join(sections)
 
+
+from vision_agent.free_providers import GroqSTT, GroqLLM, EdgeTTS
 
 # ── Agent Factory ─────────────────────────────────────────────────────────────
 
 def create_agent(custom_data: dict[str, Any] | None = None) -> Agent:
     """
     Build and return a fresh Agent instance.
-
-    custom_data is populated by the Expo app via agent-start+api.ts and
-    contains lesson_title, language_name, goals, vocabulary, phrases, etc.
+    Automatically uses free providers (Groq STT/LLM + EdgeTTS) if GROQ_API_KEY is present,
+    or falls back to OpenAI Realtime.
     """
-    # Stream Edge — reads STREAM_API_KEY + STREAM_API_SECRET from env
     edge = Edge()
-
-    # OpenAI Realtime — reads OPENAI_API_KEY from env
-    # send_video=False  → audio-only session (no camera needed)
-    llm = Realtime(
-        model="gpt-4o-realtime-preview",
-        voice="alloy",      # friendly, neutral English voice
-        send_video=False,   # voice-only teacher, no video
-    )
-
-    # Agent identity on the Stream call
     agent_user = User(
         id=AGENT_USER_ID,
         name=AGENT_NAME,
     )
 
     instructions = _build_instructions(custom_data or {})
+    groq_api_key = os.getenv("GROQ_API_KEY")
+    use_free_ai = os.getenv("USE_FREE_AI", "").lower() in ("true", "1", "yes")
+
+    if groq_api_key or use_free_ai:
+        if not groq_api_key:
+            logger.warning("USE_FREE_AI is set but GROQ_API_KEY is missing! Get a free key at https://console.groq.com")
+        logger.info("🤖 Initializing Luna using Free AI Stack (Groq STT + LLaMA-3 + EdgeTTS)")
+        stt = GroqSTT(api_key=groq_api_key or "")
+        llm = GroqLLM(api_key=groq_api_key or "", system_prompt=instructions)
+        tts = EdgeTTS(voice="en-US-AriaNeural")
+
+        return Agent(
+            edge=edge,
+            llm=llm,
+            stt=stt,
+            tts=tts,
+            agent_user=agent_user,
+            instructions=instructions,
+        )
+
+    logger.info("🤖 Initializing Luna using OpenAI Realtime API")
+    llm = Realtime(
+        model="gpt-4o-mini-realtime-preview",
+        voice="alloy",      # friendly, neutral English voice
+        send_video=False,   # voice-only teacher, no video
+    )
 
     return Agent(
         edge=edge,
@@ -158,25 +176,22 @@ CALL_CUSTOM_DATA: dict[str, dict[str, Any]] = {}
 
 async def join_call(agent: Agent, call_type: str, call_id: str) -> None:
     """
-    Join a Stream call and keep Luna alive until the call ends.
-
-    The call is created with:
-      - admin role so Luna can publish audio in audio_room
-      - goLive() to activate the room before publishing
+    Join a Stream call, greet the student, then stay alive and respond
+    interactively until the call ends (student hangs up or idle timeout fires).
     """
     custom_data = CALL_CUSTOM_DATA.get(call_id, {})
-    agent.instructions = _build_instructions(custom_data)
+    new_instructions = _build_instructions(custom_data)
+    agent.instructions = Instructions(input_text=new_instructions)
+    if hasattr(agent.llm, "set_instructions"):
+        agent.llm.set_instructions(new_instructions)
 
     language_name = custom_data.get("language_name") or "your target language"
     lesson_title = custom_data.get("lesson_title") or "General Conversation"
 
     logger.info(f"Luna joining call: {call_type}/{call_id} for language: {language_name}")
 
-    # Get or create the call on Stream's backend
     call = await agent.create_call(call_type=call_type, call_id=call_id)
 
-    # Grant Luna admin role so she can publish audio in audio_room
-    # and go live to activate the session.
     try:
         await call.update_call_members(
             update_members=[
@@ -189,22 +204,66 @@ async def join_call(agent: Agent, call_type: str, call_id: str) -> None:
     except Exception as exc:
         logger.warning(f"Could not set admin role (continuing anyway): {exc}")
 
-    try:
-        await call.go_live()
-    except Exception as exc:
-        logger.warning(f"go_live() failed (continuing anyway): {exc}")
+    # ── Realtime Live Caption Broadcaster ─────────────────────────────────
+    import time
+    async def broadcast_caption(speaker_id: str, speaker_name: str, text: str, role: str):
+        if not text or not text.strip():
+            return
+        clean_text = text.strip()
+        logger.info(f"💬 [Caption] {speaker_name} ({role}): {clean_text}")
 
-    async with agent.join(call):
-        # Greet the student once Luna joins
-        await agent.simple_response(
-            f"Greet the student warmly in English, introduce yourself as Luna their AI language teacher, "
-            f"mention that today's lesson is '{lesson_title}' in {language_name}, and ask if they are ready to begin."
-        )
+        # 1. Stream Video Closed Caption API
+        try:
+            await call.send_closed_caption(
+                speaker_id=speaker_id,
+                text=clean_text,
+                user_id=speaker_id,
+            )
+        except Exception as e:
+            logger.debug(f"send_closed_caption notice: {e}")
 
-        # Keep Luna alive until the call ends or the screen unmounts
+        # 2. Stream Video Custom Call Event (realtime instant broadcast to mobile client)
+        try:
+            await call.send_call_event(
+                custom={
+                    "type": "caption",
+                    "speaker_id": speaker_id,
+                    "speaker_name": speaker_name,
+                    "role": role,
+                    "text": clean_text,
+                    "timestamp": time.time(),
+                }
+            )
+        except Exception as e:
+            logger.debug(f"send_call_event notice: {e}")
+
+    # Wire caption callbacks on active providers
+    if hasattr(agent, "stt") and hasattr(agent.stt, "set_caption_callback"):
+        agent.stt.set_caption_callback(broadcast_caption)
+    if hasattr(agent, "tts") and hasattr(agent.tts, "set_caption_callback"):
+        agent.tts.set_caption_callback(broadcast_caption)
+
+    # Build a warm, energetic opening greeting
+    opening_prompt = (
+        f"You are Luna, starting a live {language_name} lesson called '{lesson_title}'. "
+        f"Greet the student with genuine warmth and excitement in ONE short English sentence. "
+        f"Then immediately say the very first target-language word slowly and clearly, "
+        f"give its English meaning, and invite the student to repeat it after you. "
+        f"Keep it to 2 sentences maximum. No markdown, no asterisks, plain spoken text only."
+    )
+
+    async with agent.join(call, participant_wait_timeout=60):
+        # ── Opening greeting ──────────────────────────────────────────────────
+        await agent.simple_response(opening_prompt)
+
+        # ── Interactive lesson loop ───────────────────────────────────────────
+        # The TranscribingInferenceFlow (STT→LLM→TTS) is active inside agent.join().
+        # agent.finish() waits for the call to end naturally (student hangs up or
+        # idle_timeout fires). While waiting, Luna listens and responds automatically.
         await agent.finish()
 
     logger.info(f"Luna left call: {call_type}/{call_id}")
+
 
 
 # ── Runner Setup ──────────────────────────────────────────────────────────────
@@ -238,7 +297,7 @@ async def start_agent_endpoint(payload: dict = Body(...)):
     Triggered by Expo app (via agent-start+api.ts) when a user joins a lesson.
     Spawns Luna and joins the specified Stream call with lesson context.
     """
-    call_type = payload.get("call_type", "audio_room")
+    call_type = payload.get("call_type", "default")
     call_id = payload.get("call_id")
     custom_data = payload.get("custom_data", {})
 
