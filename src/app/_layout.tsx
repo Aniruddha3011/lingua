@@ -11,6 +11,8 @@ import { StreamVideoProvider } from "@/components/stream-video-provider";
 import { posthog } from "@/config/posthog";
 import { fontAssets } from "@/theme";
 
+import { useLanguageStore } from "@/store/useLanguageStore";
+
 void SplashScreen.preventAutoHideAsync();
 
 const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY!;
@@ -22,7 +24,9 @@ if (!publishableKey) {
 function PostHogIdentity() {
   const { isLoaded, isSignedIn } = useAuth();
   const { user } = useUser();
+  const selectedLanguageId = useLanguageStore((state) => state.selectedLanguageId);
   const identifiedUserId = useRef<string | null>(null);
+  const lastIdentifiedLanguage = useRef<string | null | undefined>(undefined);
 
   useEffect(() => {
     if (!isLoaded) {
@@ -33,29 +37,43 @@ function PostHogIdentity() {
       if (identifiedUserId.current) {
         posthog?.reset();
         identifiedUserId.current = null;
+        lastIdentifiedLanguage.current = undefined;
       }
       return;
     }
 
-    if (identifiedUserId.current === user.id) {
-      return;
+    const preferredLanguage = selectedLanguageId || null;
+    const isNewUser = identifiedUserId.current !== user.id;
+
+    if (isNewUser) {
+      if (identifiedUserId.current) {
+        posthog?.reset();
+      }
+
+      const email = user.primaryEmailAddress?.emailAddress;
+      const name = [user.firstName, user.lastName].filter(Boolean).join(" ");
+
+      posthog?.identify(user.id, {
+        $set: {
+          ...(email ? { email } : {}),
+          ...(name ? { name } : {}),
+          preferred_language: preferredLanguage,
+        },
+        $set_once: {
+          signup_date: new Date().toISOString(),
+        },
+      });
+      identifiedUserId.current = user.id;
+      lastIdentifiedLanguage.current = preferredLanguage;
+    } else if (lastIdentifiedLanguage.current !== preferredLanguage) {
+      posthog?.identify(user.id, {
+        $set: {
+          preferred_language: preferredLanguage,
+        },
+      });
+      lastIdentifiedLanguage.current = preferredLanguage;
     }
-
-    if (identifiedUserId.current) {
-      posthog?.reset();
-    }
-
-    const email = user.primaryEmailAddress?.emailAddress;
-    const name = [user.firstName, user.lastName].filter(Boolean).join(" ");
-
-    posthog?.identify(user.id, {
-      $set: {
-        ...(email ? { email } : {}),
-        ...(name ? { name } : {}),
-      },
-    });
-    identifiedUserId.current = user.id;
-  }, [isLoaded, isSignedIn, user]);
+  }, [isLoaded, isSignedIn, user, selectedLanguageId]);
 
   return null;
 }

@@ -23,6 +23,7 @@ import { images } from "@/constants/images";
 import { getLanguageById } from "@/data/languages";
 import { getLessonById } from "@/data/lessons";
 import { startAgent, stopAgent, type AgentStatus } from "@/lib/agent";
+import { posthog } from "@/lib/posthog";
 import { getStreamAudioCallId, type StreamAudioCallStatus } from "@/lib/stream";
 import { useLanguageStore } from "@/store/useLanguageStore";
 
@@ -155,6 +156,39 @@ export default function AITeacherAudioLessonScreen() {
   );
   const selectedDeviceId = audioDeviceStatus?.selectedDeviceId;
   const currentEndpointType = audioDeviceStatus?.currentEndpointType;
+
+  // PostHog Lesson Metrics Tracking
+  const lessonStartTimeRef = useRef<number>(Date.now());
+  const phraseIndexRef = useRef<number>(phraseIndex);
+  const isLessonCompletedRef = useRef<boolean>(false);
+
+  useEffect(() => {
+    phraseIndexRef.current = phraseIndex;
+  }, [phraseIndex]);
+
+  useEffect(() => {
+    lessonStartTimeRef.current = Date.now();
+    posthog?.capture("lesson_started", {
+      lesson_id: lesson?.id ?? id ?? "unknown",
+      language: language?.name ?? language?.id ?? "unknown",
+      lesson_number: lesson?.order ?? 1,
+    });
+
+    return () => {
+      if (!isLessonCompletedRef.current) {
+        const timeIntoLessonSeconds = Math.max(
+          0,
+          Math.round((Date.now() - lessonStartTimeRef.current) / 1000)
+        );
+        posthog?.capture("lesson_abandoned", {
+          lesson_id: lesson?.id ?? id ?? "unknown",
+          time_into_lesson_seconds: timeIntoLessonSeconds,
+          last_question_index: phraseIndexRef.current,
+        });
+      }
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, language?.id, language?.name, lesson?.id, lesson?.order]);
 
   // Auto-switch to Bluetooth when a Bluetooth device is connected
   useEffect(() => {
@@ -478,7 +512,15 @@ export default function AITeacherAudioLessonScreen() {
     setIsPlayingAudio(true);
     setTimeout(() => {
       setIsPlayingAudio(false);
-      setPhraseIndex((prev) => prev + 1);
+      setPhraseIndex((prev) => {
+        const nextIndex = prev + 1;
+        const totalPhrases = lesson?.phrases?.length ?? 0;
+        // Mark lesson as completed once all phrases have been played through
+        if (totalPhrases > 0 && nextIndex >= totalPhrases) {
+          isLessonCompletedRef.current = true;
+        }
+        return nextIndex;
+      });
     }, 1200);
   };
 

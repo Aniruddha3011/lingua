@@ -39,9 +39,9 @@ export default function ChooseLanguage() {
   const selectedLanguage = LANGUAGES.find((l) => l.id === selectedLanguageId);
 
   const handleConfirm = () => {
-    posthog?.capture("learning_language_selected", {
-      language_id: selectedLanguageId,
-      is_language_change: Boolean(storedSelectedLanguageId),
+    posthog?.capture("language_selected", {
+      language_code: selectedLanguage?.code ?? selectedLanguageId,
+      language_name: selectedLanguage?.name ?? selectedLanguageId,
     });
     setStoreSelectedLanguageId(selectedLanguageId);
     router.replace("/(tabs)" as any);
