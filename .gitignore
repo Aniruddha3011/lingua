@@ -35,8 +35,12 @@ yarn-error.*
 .env.*
 !.env.example
 
-#mcp
-.agents
-.claude
-.cursor
-.jetro
+# IDEs, agents & local configs
+.agents/
+.claude/
+.cursor/
+.jetro/
+.idea/
+.vscode/
+.posthog/
+.mcp.json

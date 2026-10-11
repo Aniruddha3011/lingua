@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Redirect, router, type Href } from "expo-router";
 import { useState } from "react";
-import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Alert, ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { images } from "@/constants/images";
@@ -9,14 +9,6 @@ import { getLessonsByLanguage } from "@/data/lessons";
 import { getUnitsByLanguage } from "@/data/units";
 import { useLanguageStore } from "@/store/useLanguageStore";
 import type { Lesson } from "@/types/learning";
-
-type LessonStatus = "completed" | "in-progress" | "locked";
-
-function getLessonStatus(index: number): LessonStatus {
-  if (index < 2) return "completed";
-  if (index === 2) return "in-progress";
-  return "locked";
-}
 
 function getLessonAssetThumbnail(index: number) {
   const localThumbnails = [
@@ -30,10 +22,17 @@ function getLessonAssetThumbnail(index: number) {
   return localThumbnails[index % localThumbnails.length];
 }
 
-function LessonCard({ lesson, index }: { lesson: Lesson; index: number }) {
-  const status = getLessonStatus(index);
-  const isInProgress = status === "in-progress";
-  const isCompleted = status === "completed";
+function LessonCard({
+  lesson,
+  index,
+  completedLessonIds,
+}: {
+  lesson: Lesson;
+  index: number;
+  completedLessonIds: string[];
+}) {
+  const isCompleted = completedLessonIds.includes(lesson.id) || index < 1;
+  const isInProgress = !isCompleted && index <= 2;
 
   const openLesson = () => {
     router.push(`/lesson/${lesson.id}` as Href);
@@ -54,9 +53,10 @@ function LessonCard({ lesson, index }: { lesson: Lesson; index: number }) {
     >
       <View className="flex-1 pr-3">
         <Text
-          className={`font-poppins-medium text-[12px] ${
-            isInProgress ? "text-[#7C3AED] font-poppins-semibold" : "text-[#8E95A5]"
-          }`}
+          style={[
+            styles.lessonNumberText,
+            isInProgress && styles.lessonNumberInProgress,
+          ]}
         >
           Lesson {index + 1}
         </Text>
@@ -75,7 +75,11 @@ function LessonCard({ lesson, index }: { lesson: Lesson; index: number }) {
           <Text className="mt-0.5 font-poppins text-[12px] text-[#9CA3AF]">
             0 / 6 lessons
           </Text>
-        ) : null}
+        ) : (
+          <Text className="mt-0.5 font-poppins text-[12px] text-[#22C55E]">
+            Completed ✓
+          </Text>
+        )}
       </View>
 
       {/* Status icon or Lesson Thumbnail from assets */}
@@ -104,6 +108,7 @@ export default function LearnTab() {
   const [activeTab, setActiveTab] = useState<"lessons" | "practice">("lessons");
   const selectedLanguageId = useLanguageStore((state) => state.selectedLanguageId);
   const getSelectedLanguage = useLanguageStore((state) => state.getSelectedLanguage);
+  const completedLessonIds = useLanguageStore((state) => state.completedLessonIds);
   const hasHydrated = useLanguageStore((state) => state.hasHydrated);
 
   const language = getSelectedLanguage();
@@ -124,8 +129,8 @@ export default function LearnTab() {
   }
 
   const headerTitle = lessons[2]?.title ?? currentUnit?.title ?? "At the Café";
-  const unitNumber = currentUnit?.unitNumber ?? 3;
-  const completedCount = 3;
+  const unitNumber = currentUnit?.unitNumber ?? 1;
+  const completedCount = lessons.filter((l) => completedLessonIds.includes(l.id)).length || 2;
   const totalCount = Math.max(lessons.length, 6);
 
   return (
@@ -149,7 +154,11 @@ export default function LearnTab() {
           </Text>
         </View>
 
-        <TouchableOpacity accessibilityLabel="Bookmark unit" className="size-9 items-center justify-center">
+        <TouchableOpacity
+          accessibilityLabel="Bookmark unit"
+          className="size-9 items-center justify-center"
+          onPress={() => Alert.alert("Saved", "Unit bookmarked for your learning goal.")}
+        >
           <View style={styles.bookmarkBadge}>
             <Ionicons name="bookmark" size={16} color="#FF9D00" />
           </View>
@@ -222,26 +231,66 @@ export default function LearnTab() {
         <View className="px-4 pt-4 gap-3">
           {activeTab === "lessons" ? (
             lessons.map((lesson, index) => (
-              <LessonCard key={lesson.id} lesson={lesson} index={index} />
+              <LessonCard
+                key={lesson.id}
+                lesson={lesson}
+                index={index}
+                completedLessonIds={completedLessonIds}
+              />
             ))
           ) : (
-            <TouchableOpacity
-              activeOpacity={0.85}
-              style={styles.practiceCard}
-              onPress={() => router.push(`/lesson/${lessons[0]?.id}` as Href)}
-            >
-              <Text className="font-poppins-bold text-[18px] text-text-primary">
-                Quick practice
-              </Text>
-              <Text className="mt-1 font-poppins text-[14px] leading-[20px] text-text-secondary">
-                Review today&apos;s words and strengthen your {language.name} skills.
-              </Text>
-              <View className="mt-3 self-start rounded-xl bg-brand-purple px-4 py-2">
-                <Text className="font-poppins-semibold text-[14px] text-white">
-                  Start practice
+            <View className="gap-3">
+              <TouchableOpacity
+                activeOpacity={0.85}
+                style={styles.practiceCard}
+                onPress={() => router.push(`/lesson/${lessons[0]?.id}` as Href)}
+              >
+                <View className="flex-row items-center justify-between">
+                  <Text className="font-poppins-bold text-[18px] text-text-primary">
+                    Quick practice
+                  </Text>
+                  <View className="rounded-full bg-[#EDE9FE] px-2.5 py-1">
+                    <Text className="font-poppins-semibold text-[11px] text-brand-purple">
+                      +15 XP
+                    </Text>
+                  </View>
+                </View>
+                <Text className="mt-1 font-poppins text-[14px] leading-[20px] text-text-secondary">
+                  Review today&apos;s essential words and strengthen your {language.name} skills.
                 </Text>
-              </View>
-            </TouchableOpacity>
+                <View className="mt-3.5 self-start rounded-xl bg-brand-purple px-4 py-2">
+                  <Text className="font-poppins-semibold text-[14px] text-white">
+                    Start practice
+                  </Text>
+                </View>
+              </TouchableOpacity>
+
+              {/* AI Voice Session Practice Card */}
+              <TouchableOpacity
+                activeOpacity={0.85}
+                style={[styles.practiceCard, { backgroundColor: "#F7F5FF", borderColor: "#EDE9FE" }]}
+                onPress={() => router.push("/(tabs)/ai-teacher" as Href)}
+              >
+                <View className="flex-row items-center justify-between">
+                  <Text className="font-poppins-bold text-[18px] text-[#6C4EF5]">
+                    Voice Practice with Luna
+                  </Text>
+                  <View className="rounded-full bg-[#22C55E]/15 px-2.5 py-1">
+                    <Text className="font-poppins-semibold text-[11px] text-[#22C55E]">
+                      Live AI
+                    </Text>
+                  </View>
+                </View>
+                <Text className="mt-1 font-poppins text-[14px] leading-[20px] text-text-secondary">
+                  Have a live conversation with Luna to get real-time pronunciation feedback.
+                </Text>
+                <View className="mt-3.5 self-start rounded-xl bg-[#6C4EF5] px-4 py-2">
+                  <Text className="font-poppins-semibold text-[14px] text-white">
+                    Talk with Luna
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            </View>
           )}
         </View>
       </ScrollView>
@@ -377,5 +426,14 @@ const styles = StyleSheet.create({
     borderColor: "#E8E0FF",
     backgroundColor: "#FBF9FF",
     padding: 16,
+  },
+  lessonNumberText: {
+    fontFamily: "Poppins-Medium",
+    fontSize: 12,
+    color: "#8E95A5",
+  },
+  lessonNumberInProgress: {
+    fontFamily: "Poppins-SemiBold",
+    color: "#7C3AED",
   },
 });

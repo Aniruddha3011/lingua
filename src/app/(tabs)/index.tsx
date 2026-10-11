@@ -1,6 +1,15 @@
 import { useAuth, useUser } from "@clerk/expo";
 import { Redirect, router } from "expo-router";
-import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import {
+  ActivityIndicator,
+  Alert,
+  Image,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { images } from "@/constants/images";
@@ -21,6 +30,8 @@ export default function HomeTab() {
   const selectedLanguageId = useLanguageStore((state) => state.selectedLanguageId);
   const getSelectedLanguage = useLanguageStore((state) => state.getSelectedLanguage);
   const hasHydrated = useLanguageStore((state) => state.hasHydrated);
+  const streak = useLanguageStore((state) => state.streak);
+  const xp = useLanguageStore((state) => state.xp);
 
   const currentLanguage = getSelectedLanguage();
 
@@ -50,11 +61,21 @@ export default function HomeTab() {
   const firstName = user?.firstName ?? user?.emailAddresses?.[0]?.emailAddress?.split("@")[0] ?? "there";
   const greeting = `Hola, ${firstName}! 👋`;
 
-  // Streak XP (hardcoded for now)
-  const streakCount = 12;
-  const currentXP = 15;
-  const goalXP = 20;
-  const xpProgress = currentXP / goalXP;
+  // Streak & XP derived values
+  const streakCount = streak || 12;
+  const currentXP = xp || 25;
+  const goalXP = 50;
+  const xpProgress = Math.min(1, currentXP / goalXP);
+
+  const handlePlanItemPress = (item: typeof TODAY_PLAN[0]) => {
+    if (item.id === "tp-1") {
+      router.push(`/lesson/${currentLesson?.id || "es-1-1"}` as any);
+    } else if (item.id === "tp-2") {
+      router.push("/(tabs)/ai-teacher" as any);
+    } else {
+      router.push("/(tabs)/learn" as any);
+    }
+  };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#FFFFFF" }}>
@@ -64,35 +85,61 @@ export default function HomeTab() {
       >
         {/* ─── Header ─── */}
         <View className="flex-row items-center px-5 pt-2 pb-4">
-          {/* Flag avatar */}
-          <View style={styles.flagAvatar}>
+          {/* Flag avatar - Tap to change language */}
+          <TouchableOpacity
+            activeOpacity={0.8}
+            style={styles.flagAvatar}
+            onPress={() => router.push("/choose-language")}
+          >
             <Image
               source={{ uri: currentLanguage?.flag }}
               style={{ width: 36, height: 36, borderRadius: 18 }}
               resizeMode="cover"
             />
-          </View>
+          </TouchableOpacity>
 
           {/* Greeting */}
           <Text className="flex-1 ml-3 font-poppins-bold text-[20px] text-text-primary" numberOfLines={1}>
             {greeting}
           </Text>
 
-          {/* Streak */}
-          <View className="flex-row items-center mr-3">
+          {/* Streak - Tap for streak details */}
+          <TouchableOpacity
+            activeOpacity={0.7}
+            className="flex-row items-center mr-3"
+            onPress={() =>
+              Alert.alert(
+                "🔥 " + streakCount + " Day Streak!",
+                "You are doing awesome! Practice daily with Luna to build your streak and stay fluent."
+              )
+            }
+          >
             <Image source={images.streakFire} style={{ width: 22, height: 22 }} resizeMode="contain" />
             <Text className="ml-1 font-poppins-bold text-[16px] text-[#FF8A00]">{streakCount}</Text>
-          </View>
+          </TouchableOpacity>
 
-          {/* Bell */}
-          <TouchableOpacity style={styles.bellButton} activeOpacity={0.7}>
+          {/* Bell - Notifications */}
+          <TouchableOpacity
+            style={styles.bellButton}
+            activeOpacity={0.7}
+            onPress={() =>
+              Alert.alert(
+                "Notifications",
+                "You're all caught up! Time for your daily practice session with Luna."
+              )
+            }
+          >
             <Text style={{ fontSize: 20 }}>🔔</Text>
           </TouchableOpacity>
         </View>
 
         <View className="px-5 gap-4">
           {/* ─── Daily Goal Card ─── */}
-          <View style={styles.goalCard}>
+          <TouchableOpacity
+            activeOpacity={0.9}
+            style={styles.goalCard}
+            onPress={() => router.push("/(tabs)/learn")}
+          >
             <View className="flex-1">
               <Text className="font-poppins text-[13px] text-text-secondary mb-1">Daily goal</Text>
               <Text className="font-poppins-bold text-[28px] text-text-primary leading-[34px]">
@@ -109,10 +156,18 @@ export default function HomeTab() {
               style={{ width: 80, height: 80, marginLeft: 8 }}
               resizeMode="contain"
             />
-          </View>
+          </TouchableOpacity>
 
           {/* ─── Continue Learning Card ─── */}
-          <View style={styles.continueCard}>
+          <TouchableOpacity
+            activeOpacity={0.9}
+            style={styles.continueCard}
+            onPress={() =>
+              currentLesson
+                ? router.push(`/lesson/${currentLesson.id}` as any)
+                : router.push("/(tabs)/learn")
+            }
+          >
             {/* Gradient overlay using nested views */}
             <View style={styles.continueCardInner}>
               <View className="flex-1 pr-2">
@@ -123,14 +178,11 @@ export default function HomeTab() {
                 <Text className="font-poppins text-[14px] text-white opacity-70 mt-1 mb-4">
                   A1 • {currentUnit ? `Unit ${currentUnit.unitNumber}` : "Unit 1"}
                 </Text>
-                <TouchableOpacity
-                  style={styles.continueButton}
-                  activeOpacity={0.85}
-                  disabled={!currentLesson}
-                  onPress={currentLesson ? () => router.push("/(tabs)/learn") : undefined}
-                >
-                  <Text className="font-poppins-semibold text-[15px] text-brand-purple">Continue</Text>
-                </TouchableOpacity>
+                <View style={styles.continueButton}>
+                  <Text className="font-poppins-semibold text-[15px] text-brand-purple">
+                    Continue Lesson
+                  </Text>
+                </View>
               </View>
               {/* Palace image */}
               <Image
@@ -139,13 +191,16 @@ export default function HomeTab() {
                 resizeMode="contain"
               />
             </View>
-          </View>
+          </TouchableOpacity>
 
           {/* ─── Today's Plan ─── */}
           <View>
             <View className="flex-row items-center justify-between mb-3">
               <Text className="font-poppins-bold text-[17px] text-text-primary">Today&apos;s plan</Text>
-              <TouchableOpacity activeOpacity={0.7}>
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={() => router.push("/(tabs)/learn")}
+              >
                 <Text className="font-poppins-semibold text-[14px] text-brand-purple">View all</Text>
               </TouchableOpacity>
             </View>
@@ -153,7 +208,11 @@ export default function HomeTab() {
             <View style={styles.planCard}>
               {TODAY_PLAN.map((item, index) => (
                 <View key={item.id}>
-                  <View className="flex-row items-center py-3">
+                  <TouchableOpacity
+                    activeOpacity={0.75}
+                    className="flex-row items-center py-3"
+                    onPress={() => handlePlanItemPress(item)}
+                  >
                     {/* Icon box */}
                     <View style={[styles.planIcon, { backgroundColor: item.color }]}>
                       <Text style={{ fontSize: 18 }}>{item.icon}</Text>
@@ -165,15 +224,19 @@ export default function HomeTab() {
                       <Text className="font-poppins text-[13px] text-text-secondary">{item.subtitle}</Text>
                     </View>
 
-                    {/* Check / Circle */}
+                    {/* Check / Arrow */}
                     {item.done ? (
                       <View style={styles.checkCircle}>
                         <Text style={{ color: "#fff", fontSize: 13 }}>✓</Text>
                       </View>
                     ) : (
-                      <View style={styles.emptyCircle} />
+                      <View style={styles.startBadge}>
+                        <Text style={{ color: "#6C4EF5", fontSize: 11, fontFamily: "Poppins-SemiBold" }}>
+                          Start ›
+                        </Text>
+                      </View>
                     )}
-                  </View>
+                  </TouchableOpacity>
                   {index < TODAY_PLAN.length - 1 && <View style={styles.divider} />}
                 </View>
               ))}
@@ -181,26 +244,35 @@ export default function HomeTab() {
           </View>
 
           {/* ─── Next Up Card ─── */}
-          <View style={styles.nextUpCard}>
+          <TouchableOpacity
+            activeOpacity={0.88}
+            style={styles.nextUpCard}
+            onPress={() =>
+              router.push(
+                `/lesson/${currentLesson?.id || "es-1-1"}` as any
+              )
+            }
+          >
             <View className="flex-1">
               <Text className="font-poppins text-[12px] text-text-secondary mb-0.5">Next up</Text>
               <Text className="font-poppins-bold text-[18px] text-text-primary">AI Video Call</Text>
-              <Text className="font-poppins text-[13px] text-text-secondary">Practice speaking</Text>
+              <Text className="font-poppins text-[13px] text-text-secondary">Practice speaking with Luna</Text>
             </View>
 
             {/* Teacher avatar */}
             <View style={styles.teacherAvatarWrap}>
               <Image
-                source={{ uri: "https://i.pravatar.cc/150?img=47" }}
-                style={styles.teacherAvatar}
+                source={images.mascotLogo}
+                style={{ width: 44, height: 44 }}
+                resizeMode="contain"
               />
             </View>
 
             {/* Video call button */}
-            <TouchableOpacity style={styles.videoButton} activeOpacity={0.85}>
+            <View style={styles.videoButton}>
               <Text style={{ fontSize: 22 }}>📹</Text>
-            </TouchableOpacity>
-          </View>
+            </View>
+          </TouchableOpacity>
 
           {/* bottom padding for tab bar */}
           <View style={{ height: 16 }} />
@@ -298,6 +370,12 @@ const styles = StyleSheet.create({
     backgroundColor: "#6C4EF5",
     alignItems: "center",
     justifyContent: "center",
+  },
+  startBadge: {
+    backgroundColor: "#F5F3FF",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
   },
   emptyCircle: {
     width: 28,
