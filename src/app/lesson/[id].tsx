@@ -6,6 +6,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Image,
+  Modal,
   PermissionsAndroid,
   Platform,
   ScrollView,
@@ -92,6 +93,8 @@ export default function AITeacherAudioLessonScreen() {
   const streamClient = useStreamVideoClient();
   const streamConnection = useStreamVideoConnection();
   const selectedLanguageId = useLanguageStore((state) => state.selectedLanguageId);
+  const streak = useLanguageStore((state) => state.streak);
+  const markLessonCompleted = useLanguageStore((state) => state.markLessonCompleted);
 
   const lesson = id ? getLessonById(id) : undefined;
   const language = lesson
@@ -117,6 +120,7 @@ export default function AITeacherAudioLessonScreen() {
   const [showSubtitles, setShowSubtitles] = useState(true);
   const [phraseIndex, setPhraseIndex] = useState(0);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+  const [isLessonCompletedModalVisible, setIsLessonCompletedModalVisible] = useState(false);
 
   // Real-time Live Captions State (Teacher & Student speech)
   const [liveCaptions, setLiveCaptions] = useState<LiveCaption[]>([]);
@@ -158,7 +162,7 @@ export default function AITeacherAudioLessonScreen() {
   const currentEndpointType = audioDeviceStatus?.currentEndpointType;
 
   // PostHog Lesson Metrics Tracking
-  const lessonStartTimeRef = useRef<number>(Date.now());
+  const lessonStartTimeRef = useRef<number>(0);
   const phraseIndexRef = useRef<number>(phraseIndex);
   const isLessonCompletedRef = useRef<boolean>(false);
 
@@ -178,7 +182,7 @@ export default function AITeacherAudioLessonScreen() {
       if (!isLessonCompletedRef.current) {
         const timeIntoLessonSeconds = Math.max(
           0,
-          Math.round((Date.now() - lessonStartTimeRef.current) / 1000)
+          Math.round((Date.now() - (lessonStartTimeRef.current || Date.now())) / 1000)
         );
         posthog?.capture("lesson_abandoned", {
           lesson_id: lesson?.id ?? id ?? "unknown",
@@ -187,7 +191,6 @@ export default function AITeacherAudioLessonScreen() {
         });
       }
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, language?.id, language?.name, lesson?.id, lesson?.order]);
 
   // Auto-switch to Bluetooth when a Bluetooth device is connected
@@ -512,15 +515,17 @@ export default function AITeacherAudioLessonScreen() {
     setIsPlayingAudio(true);
     setTimeout(() => {
       setIsPlayingAudio(false);
-      setPhraseIndex((prev) => {
-        const nextIndex = prev + 1;
-        const totalPhrases = lesson?.phrases?.length ?? 0;
-        // Mark lesson as completed once all phrases have been played through
-        if (totalPhrases > 0 && nextIndex >= totalPhrases) {
-          isLessonCompletedRef.current = true;
+      const nextIndex = phraseIndex + 1;
+      setPhraseIndex(nextIndex);
+      const totalPhrases = lesson?.phrases?.length ?? 0;
+      // Mark lesson as completed once all phrases have been played through
+      if (totalPhrases > 0 && nextIndex >= totalPhrases) {
+        isLessonCompletedRef.current = true;
+        if (lesson?.id) {
+          markLessonCompleted(lesson.id, 15);
         }
-        return nextIndex;
-      });
+        setIsLessonCompletedModalVisible(true);
+      }
     }, 1200);
   };
 
@@ -677,16 +682,28 @@ export default function AITeacherAudioLessonScreen() {
 
         {/* Header Badges */}
         <View className="flex-row items-center gap-2">
-          <TouchableOpacity className="size-9 items-center justify-center rounded-full bg-[#F6F7FB]">
-            <Ionicons name="videocam-outline" size={18} color="#0D132B" />
+          <TouchableOpacity
+            accessibilityLabel="Toggle camera"
+            className="size-9 items-center justify-center rounded-full bg-[#F6F7FB]"
+            onPress={handleToggleCamera}
+          >
+            <Ionicons
+              name={isCameraActive ? "videocam" : "videocam-outline"}
+              size={18}
+              color={isCameraActive ? "#6C4EF5" : "#0D132B"}
+            />
           </TouchableOpacity>
 
           <View className="h-9 flex-row items-center rounded-full bg-[#FFF8EC] px-2.5 border border-[#FFE5B4]">
             <Image source={images.streakFire} style={{ width: 16, height: 16 }} resizeMode="contain" />
-            <Text className="ml-1 font-poppins-bold text-[13px] text-[#FF8A00]">12</Text>
+            <Text className="ml-1 font-poppins-bold text-[13px] text-[#FF8A00]">{streak || 12}</Text>
           </View>
 
-          <TouchableOpacity className="size-9 items-center justify-center rounded-full bg-[#F6F7FB]">
+          <TouchableOpacity
+            accessibilityLabel="View profile"
+            className="size-9 items-center justify-center rounded-full bg-[#F6F7FB]"
+            onPress={() => router.push("/(tabs)/profile")}
+          >
             <Ionicons name="person-outline" size={18} color="#0D132B" />
           </TouchableOpacity>
         </View>
@@ -1089,6 +1106,54 @@ export default function AITeacherAudioLessonScreen() {
           </View>
         </View>
       </ScrollView>
+
+      {/* ─── Lesson Completed Celebration Modal ─── */}
+      <Modal
+        visible={isLessonCompletedModalVisible}
+        transparent={true}
+        animationType="fade"
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalTrophyWrap}>
+              <Image
+                source={images.treasure}
+                style={{ width: 84, height: 84 }}
+                resizeMode="contain"
+              />
+            </View>
+
+            <Text style={styles.modalTitle}>Lesson Completed! 🎉</Text>
+            <Text style={styles.modalSubtitle}>
+              Great job practicing with Luna! You completed all dialogue phrases.
+            </Text>
+
+            <View style={styles.modalXpBadge}>
+              <Ionicons name="flash" size={18} color="#FF8A00" style={{ marginRight: 6 }} />
+              <Text style={styles.modalXpText}>+15 XP Earned</Text>
+            </View>
+
+            <TouchableOpacity
+              activeOpacity={0.85}
+              style={styles.modalPrimaryButton}
+              onPress={handleEndCall}
+            >
+              <Text style={styles.modalPrimaryButtonText}>Finish & Return Home</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              activeOpacity={0.7}
+              style={styles.modalSecondaryButton}
+              onPress={() => {
+                setPhraseIndex(0);
+                setIsLessonCompletedModalVisible(false);
+              }}
+            >
+              <Text style={styles.modalSecondaryButtonText}>Practice Again</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -1465,5 +1530,87 @@ const styles = StyleSheet.create({
     fontFamily: "Poppins-Medium",
     fontSize: 12,
     color: "#6C4EF5",
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(13, 19, 43, 0.65)",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 24,
+  },
+  modalContent: {
+    width: "100%",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 24,
+    padding: 24,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  modalTrophyWrap: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: "#FFF8EE",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 12,
+  },
+  modalTitle: {
+    fontFamily: "Poppins-Bold",
+    fontSize: 22,
+    color: "#0D132B",
+    textAlign: "center",
+  },
+  modalSubtitle: {
+    fontFamily: "Poppins",
+    fontSize: 13,
+    lineHeight: 19,
+    color: "#6B7280",
+    textAlign: "center",
+    marginTop: 6,
+    paddingHorizontal: 8,
+  },
+  modalXpBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFF8EE",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 16,
+    marginTop: 14,
+    borderWidth: 1,
+    borderColor: "#FFE5B4",
+  },
+  modalXpText: {
+    fontFamily: "Poppins-Bold",
+    fontSize: 14,
+    color: "#FF8A00",
+  },
+  modalPrimaryButton: {
+    width: "100%",
+    backgroundColor: "#6C4EF5",
+    borderRadius: 16,
+    paddingVertical: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 20,
+  },
+  modalPrimaryButtonText: {
+    fontFamily: "Poppins-SemiBold",
+    fontSize: 15,
+    color: "#FFFFFF",
+  },
+  modalSecondaryButton: {
+    paddingVertical: 10,
+    marginTop: 8,
+  },
+  modalSecondaryButtonText: {
+    fontFamily: "Poppins-Medium",
+    fontSize: 13,
+    color: "#6B7280",
   },
 });
